@@ -1,8 +1,8 @@
 # react-native-synchronisdk
-OYMotion synchroni sdk for react native
+Synchroni sdk for react native
 
 ## Brief
-Synchroni SDK is the software development kit for developers to access OYMotion products.
+Synchroni SDK is the software development kit for developers to access Synchroni products.
 
 
 ## Contributing
