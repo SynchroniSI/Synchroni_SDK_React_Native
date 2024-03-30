@@ -1,5 +1,5 @@
 {
-  "name": "react-native-synchronisdk",
+  "name": "@synchroni/synchroni_sdk_react_native",
   "version": "0.1.0",
   "description": "xxx",
   "main": "lib/commonjs/index",
@@ -41,14 +41,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yecq/react-native-synchronisdk.git"
+    "url": "git+https://github.com/SynchroniSI/Synchroni_SDK_React_Native"
   },
   "author": "ycq <yecq_82@hotmail.com> (https://github.com/yecq)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yecq/react-native-synchronisdk/issues"
+    "url": "https://github.com/SynchroniSI/Synchroni_SDK_React_Native/issues"
   },
-  "homepage": "https://github.com/yecq/react-native-synchronisdk#readme",
+  "homepage": "https://github.com/SynchroniSI/Synchroni_SDK_React_Native#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
@@ -164,5 +164,8 @@
     "name": "RNSynchronisdkSpec",
     "type": "modules",
     "jsSrcsDir": "src"
+  },
+  "directories": {
+    "example": "example"
   }
 }
