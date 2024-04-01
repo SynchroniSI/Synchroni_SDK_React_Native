@@ -25,6 +25,8 @@ RCT_EXPORT_MODULE()
         scanReject = nil;
         _methodQueue = dispatch_queue_create("SensorSDK", DISPATCH_QUEUE_SERIAL);
         _senderQueue = dispatch_queue_create("SensorSDK_data", DISPATCH_QUEUE_SERIAL);
+        self.dataFlag = (DataNotifyFlags)(DNF_ACCELERATE  |DNF_IMPEDANCE);
+        [self _initACC_GYRO];
     }
     return self;
 }
@@ -68,11 +70,37 @@ RCT_EXPORT_MODULE()
 -(void)clearSamples{
     [self.eegData clear];
     [self.ecgData clear];
+    [self.accData clear];
+    [self.gyroData clear];
     self.impedanceData = [[NSMutableArray alloc] init];
     self.saturationData = [[NSMutableArray alloc] init];
 }
 
--(void)_initECG:(int)packageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+-(void)_initACC_GYRO{
+    self.accData = [[SensorData alloc] init];
+    SensorData* data = self.accData;
+    data.dataType = NTF_ACC_DATA;
+    data.sampleRate = 50;
+    data.channelMask = 255;
+    data.channelCount = 3;
+    data.resolutionBits = 16;
+    data.packageSampleCount = 1;
+    data.K = 1 / 8192.0;
+    [data clear];
+    
+    self.gyroData = [[SensorData alloc] init];
+    data = self.gyroData;
+    data.dataType = NTF_GYO_DATA;
+    data.sampleRate = 50;
+    data.channelMask = 255;
+    data.channelCount = 3;
+    data.resolutionBits = 16;
+    data.packageSampleCount = 1;
+    data.K = 1 / 16.4;
+    [data clear];
+}
+
+-(void)_initECG:(int)inPackageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     if (self.profile.state != BLEStateRunning){
         reject(@"initECG", @"device not connected", nil);
         return;
@@ -94,12 +122,15 @@ RCT_EXPORT_MODULE()
                 if (resp == GF_SUCCESS){
                     SensorData* data = self.ecgData;
                     data.channelCount = maxChannelCount;
-                    self.dataFlag = (DataNotifyFlags)(self.dataFlag | DNF_ECG  |DNF_IMPEDANCE);
+                    self.dataFlag = (DataNotifyFlags)(self.dataFlag | DNF_ECG);
                     //            NSLog(@"got ecgData info: %d %d %llu %d", data.sampleRate, data.channelCount, data.channelMask, data.packageSampleCount);
-                    
-                    [self.profile setEcgDataConfig:data.sampleRate channelMask:data.channelMask sampleCount:packageSampleCount resolutionBits:data.resolutionBits cb:^(GF_RET_CODE resp) {
+                    if (inPackageSampleCount <= 0){
+                        resolve(@(TRUE));
+                        return;
+                    }
+                    [self.profile setEcgDataConfig:data.sampleRate channelMask:data.channelMask sampleCount:inPackageSampleCount resolutionBits:data.resolutionBits cb:^(GF_RET_CODE resp) {
                         if (resp == GF_SUCCESS){
-                            data.packageSampleCount = packageSampleCount;
+                            data.packageSampleCount = inPackageSampleCount;
                             resolve(@(TRUE));
                         }else{
                             NSString* err = [NSString stringWithFormat:@"device return error: %ld", (long)resp];
@@ -121,7 +152,7 @@ RCT_EXPORT_MODULE()
     } timeout:TIMEOUT];
 }
 
-- (void)_initEEG:(int)packageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+- (void)_initEEG:(int)inPackageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     if (self.profile.state != BLEStateRunning){
         reject(@"initEEG", @"device not connected", nil);
         return;
@@ -143,12 +174,15 @@ RCT_EXPORT_MODULE()
                 if (resp == GF_SUCCESS){
                     SensorData* data = self.eegData;
                     data.channelCount = maxChannelCount;
-                    self.dataFlag = (DataNotifyFlags)(self.dataFlag | DNF_EEG  |DNF_IMPEDANCE);
+                    self.dataFlag = (DataNotifyFlags)(self.dataFlag | DNF_EEG);
                     //            NSLog(@"got eegData info: %d %d %llu %d", data.sampleRate, data.channelCount, data.channelMask, data.packageSampleCount);
-                    
-                    [self.profile setEegDataConfig:data.sampleRate channelMask:data.channelMask sampleCount:packageSampleCount resolutionBits:data.resolutionBits cb:^(GF_RET_CODE resp) {
+                    if (inPackageSampleCount <= 0){
+                        resolve(@(TRUE));
+                        return;
+                    }
+                    [self.profile setEegDataConfig:data.sampleRate channelMask:data.channelMask sampleCount:inPackageSampleCount resolutionBits:data.resolutionBits cb:^(GF_RET_CODE resp) {
                         if (resp == GF_SUCCESS){
-                            data.packageSampleCount = packageSampleCount;
+                            data.packageSampleCount = inPackageSampleCount;
                             resolve(@(TRUE));
                         }else{
                             NSString* err = [NSString stringWithFormat:@"device return error: %ld", (long)resp];
@@ -400,7 +434,7 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
 
 - (void)onSensorStateChange:(BLEState)newState {
     if (newState == BLEStateUnConnected){
-        self.dataFlag = DNF_OFF;
+        self.dataFlag = (DataNotifyFlags)(DNF_ACCELERATE  |DNF_IMPEDANCE);
         [self clearSamples];
     }
     [self sendEvent:@"STATE_CHANGED" params:@(newState)];
@@ -408,17 +442,28 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
 
 
 - (void)onSensorNotifyData:(NSData *)rawData {
-    if (rawData.length > 1){
-        unsigned char* result = (unsigned char*)rawData.bytes;
-        if (result[0] == NTF_EEG || result[0] == NTF_ECG || result[0] == NTF_IMPEDANCE){
-            SensorData* sensorData = nil;
+    dispatch_async([self senderQueue], ^{
+        
+        if (rawData.length > 1){
+            unsigned char* result = (unsigned char*)rawData.bytes;
+
             if (result[0] == NTF_EEG){
-                sensorData = self.eegData;
-//                NSLog(@"got eeg : %d", rawData.length);
+                SensorData* sensorData = self.eegData;
+                if ([self checkReadSamples:result sensorData:sensorData dataOffset:3])
+                    [self sendSamples:sensorData];
             }
             else if (result[0] == NTF_ECG){
-                sensorData = self.ecgData;
-//                NSLog(@"got ecg : %d", rawData.length );
+                SensorData* sensorData = self.ecgData;
+                if ([self checkReadSamples:result sensorData:sensorData dataOffset:3])
+                    [self sendSamples:sensorData];
+            }else if (result[0] == NTF_ACC_DATA){
+                SensorData* sensorData = self.accData;
+                if ([self checkReadSamples:result sensorData:sensorData dataOffset:3])
+                    [self sendSamples:sensorData];
+                
+                sensorData = self.gyroData;
+                if ([self checkReadSamples:result sensorData:sensorData dataOffset:9])
+                    [self sendSamples:sensorData];
             }
             else if (result[0] == NTF_IMPEDANCE){
                 NSMutableArray* impedanceData = [[NSMutableArray alloc] init];
@@ -426,7 +471,7 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
 
                 int dataCount = (rawData.length - 3) / 4 / 2;
                 int counter = (result[2] << 8) | result[1];
-//                NSLog(@"got impedance data : %d %d", dataCount, counter);
+    //                NSLog(@"got impedance data : %d %d", dataCount, counter);
                 int offset = 3;
                 for (int index = 0;index < dataCount;++index, offset += 4){
                     unsigned char bytes[4];
@@ -452,53 +497,52 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
                 
                 self.impedanceData = impedanceData;
                 self.saturationData = railData;
-//                NSLog(@"got impedance data : %@ %@", impedanceData, railData);
-            }
-            if (sensorData == nil){
-                return;
-            }
-            int readOffset = 1;
-
-            @try {
-                int packageIndex = *((unsigned short*)(result + readOffset));
-                readOffset += 2;
-                int newPackageIndex = packageIndex;
-//                NSLog(@"packageindex: %d", packageIndex);
-                int lastPackageIndex = sensorData.lastPackageIndex;
-                
-                if (packageIndex < lastPackageIndex){
-                    packageIndex += 65536;
-                }else if (packageIndex == lastPackageIndex){
-                    //same index is not right
-//                    NSLog(@"Repeat index: %d", packageIndex);
-                    return;
-                }
-                int deltaPackageIndex = packageIndex - lastPackageIndex;
-                if (deltaPackageIndex > 1){
-                    int lostSampleCount = sensorData.packageSampleCount * (deltaPackageIndex - 1);
-//                    NSLog(@"lost samples: %d", lostSampleCount);
-                    [self readSamples:result sensorData:sensorData offset:0 lostSampleCount:lostSampleCount];
-                    if (newPackageIndex == 0){
-                        sensorData.lastPackageIndex = 65535;
-                    }else{
-                        sensorData.lastPackageIndex = newPackageIndex - 1;
-                    }
-                    sensorData.lastPackageCounter += (deltaPackageIndex - 1);
-                }
-                [self readSamples:result sensorData:sensorData offset:readOffset lostSampleCount:0];
-                sensorData.lastPackageIndex = newPackageIndex;
-                sensorData.lastPackageCounter++;
-                [self sendSamples:sensorData];
-
-            } @catch (NSException *exception) {
-                NSLog(@"Error: %@", [exception description]);
-            } @finally {
-                
             }
         }
-    }
+
+    });
 }
 
+- (BOOL)checkReadSamples:(unsigned char *)result sensorData:(SensorData*) sensorData dataOffset:(int)dataOffset{
+    int readOffset = 1;
+
+    @try {
+        int packageIndex = *((unsigned short*)(result + readOffset));
+        readOffset += 2;
+        int newPackageIndex = packageIndex;
+//                NSLog(@"packageindex: %d", packageIndex);
+        int lastPackageIndex = sensorData.lastPackageIndex;
+        
+        if (packageIndex < lastPackageIndex){
+            packageIndex += 65536;
+        }else if (packageIndex == lastPackageIndex){
+            //same index is not right
+//                    NSLog(@"Repeat index: %d", packageIndex);
+            return FALSE;
+        }
+        int deltaPackageIndex = packageIndex - lastPackageIndex;
+        if (deltaPackageIndex > 1){
+            int lostSampleCount = sensorData.packageSampleCount * (deltaPackageIndex - 1);
+//                    NSLog(@"lost samples: %d", lostSampleCount);
+            [self readSamples:result sensorData:sensorData offset:0 lostSampleCount:lostSampleCount];
+            if (newPackageIndex == 0){
+                sensorData.lastPackageIndex = 65535;
+            }else{
+                sensorData.lastPackageIndex = newPackageIndex - 1;
+            }
+            sensorData.lastPackageCounter += (deltaPackageIndex - 1);
+        }
+        [self readSamples:result sensorData:sensorData offset:dataOffset lostSampleCount:0];
+        sensorData.lastPackageIndex = newPackageIndex;
+        sensorData.lastPackageCounter++;
+    } @catch (NSException *exception) {
+        NSLog(@"Error: %@", [exception description]);
+        return FALSE;
+    } @finally {
+        
+    }
+    return TRUE;
+}
 
 - (void)readSamples:(unsigned char *)data sensorData:(SensorData*) sensorData offset:(int)offset lostSampleCount:(int)lostSampleCount{
     
@@ -553,8 +597,7 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
                         offset += 1;
                         sample.rawData = rawData;
                     }else if (sensorData.resolutionBits == 16){
-                        int rawData = (data[offset] << 8) | (data[offset + 1]);
-                        rawData -= 32768;
+                        int rawData = *((short*)(data + offset));
                         offset += 2;
                         sample.rawData = rawData;
                     }else if (sensorData.resolutionBits == 24){
@@ -578,10 +621,12 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
 
 - (void)sendSamples:(SensorData*) sensorData{
     
-    dispatch_async([self senderQueue], ^{
-        NSDictionary* sampleResult = [sensorData flushSamples];
+
+    NSDictionary* sampleResult = [sensorData flushSamples];
+    if (sampleResult != nil){
         [self sendEvent:@"GOT_DATA" params:sampleResult];
-    });
+    }
+
 }
 @end
 
@@ -604,8 +649,12 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
 
 
 -(NSDictionary*)flushSamples{
-    NSMutableArray<NSMutableArray<Sample*>*>* channelSamples = self.channelSamples;
+    NSMutableArray<NSMutableArray<Sample*>*>* channelSamples = [self.channelSamples copy];
     self.channelSamples = nil;
+    
+    if (channelSamples == nil){
+        return nil;
+    }
     
     NSMutableDictionary* result = [[NSMutableDictionary alloc] init];
     [result setValue:@(self.dataType) forKey:@"dataType"];
@@ -615,7 +664,7 @@ RCT_EXPORT_METHOD(initEEG:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTProm
     [result setValue:@(self.channelMask) forKey:@"channelMask"];
     [result setValue:@(self.packageSampleCount) forKey:@"packageSampleCount"];
     [result setValue:@(self.K) forKey:@"K"];
-    
+
     NSMutableArray* channelsResult = [[NSMutableArray alloc] init];
 
     for (int channelIndex = 0;channelIndex < self.channelCount;++channelIndex){

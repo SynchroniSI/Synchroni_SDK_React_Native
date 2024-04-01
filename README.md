@@ -20,7 +20,7 @@ Made with [create-react-native-library](https://github.com/callstack/react-nativ
 ## Installation
 
 ```sh
-yarn add react-native-synchronisdk
+yarn add  @synchroni/synchroni_sdk_react_native
 ```
 
 ## 1. Permission 

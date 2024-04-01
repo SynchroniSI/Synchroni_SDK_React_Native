@@ -5,7 +5,7 @@ import { DeviceStateEx, type BLEDevice, type SensorData } from './NativeSynchron
 export default class SensorController {
   private static _instance: SensorController;
 
-  private synchronyProfile: SensorProfile;
+  private sensorProfile: SensorProfile;
   private _supportEEG: boolean;
   private _supportECG: boolean;
   private _hasInited: boolean;
@@ -47,14 +47,14 @@ export default class SensorController {
     this._device = null;
     this._powerCache = -1;
 
-    this.synchronyProfile = new SensorProfile((newstate: DeviceStateEx) => {
+    this.sensorProfile = new SensorProfile((newstate: DeviceStateEx) => {
       if (newstate === DeviceStateEx.Disconnected) {
         this._reset();
       }
     });
 
     if (this.connectionState === DeviceStateEx.Ready) {
-      this.synchronyProfile.disconnect();
+      this.sensorProfile.disconnect();
     }
   }
 
@@ -63,7 +63,7 @@ export default class SensorController {
   }
 
   public get connectionState(): DeviceStateEx {
-    return this.synchronyProfile.getDeviceState();
+    return this.sensorProfile.getDeviceState();
   }
 
   public get supportEEG(): boolean {
@@ -88,25 +88,25 @@ export default class SensorController {
 
   public set onStateChanged(callback: (newstate: DeviceStateEx) => void) {
     if (callback) {
-      this.synchronyProfile.AddOnStateChanged(callback);
+      this.sensorProfile.AddOnStateChanged(callback);
     } else {
-      this.synchronyProfile.RemoveOnStateChanged();
+      this.sensorProfile.RemoveOnStateChanged();
     }
   }
 
   public set onErrorCallback(callback: (reason: string) => void) {
     if (callback) {
-      this.synchronyProfile.AddOnErrorCallback(callback);
+      this.sensorProfile.AddOnErrorCallback(callback);
     } else {
-      this.synchronyProfile.RemoveOnErrorCallback();
+      this.sensorProfile.RemoveOnErrorCallback();
     }
   }
 
   public set onDataCallback(callback: (signalData: SensorData) => void) {
     if (callback) {
-      this.synchronyProfile.AddOnDataCallback(callback);
+      this.sensorProfile.AddOnDataCallback(callback);
     } else {
-      this.synchronyProfile.RemoveOnDataCallback();
+      this.sensorProfile.RemoveOnDataCallback();
     }
   }
 
@@ -165,7 +165,7 @@ export default class SensorController {
       }
       this._isSearching = true;
 
-      this.synchronyProfile
+      this.sensorProfile
         .startScan(timeoutInMs)
         .then((devices: BLEDevice[]) => {
           this._isSearching = false;
@@ -185,7 +185,7 @@ export default class SensorController {
     if (!this._isSearching) {
       return;
     }
-    return this.synchronyProfile.stopScan();
+    return this.sensorProfile.stopScan();
   }
 
   public async connect(device: BLEDevice): Promise<boolean> {
@@ -198,7 +198,7 @@ export default class SensorController {
       return false;
     }
     this._device = device;
-    return this.synchronyProfile.connect(device);
+    return this.sensorProfile.connect(device);
   }
 
   public async disconnect(): Promise<boolean> {
@@ -212,7 +212,7 @@ export default class SensorController {
     }
     this.stopDataNotification();
     this._reset();
-    return this.synchronyProfile.disconnect();
+    return this.sensorProfile.disconnect();
   }
 
   public async startDataNotification(): Promise<boolean> {
@@ -224,7 +224,7 @@ export default class SensorController {
     }
     this._isSwitchDataTransfering = true;
     try {
-      const result = await this.synchronyProfile.startDataNotification();
+      const result = await this.sensorProfile.startDataNotification();
       if (result) {
         this._isDataTransfering = true;
       }
@@ -232,7 +232,7 @@ export default class SensorController {
       return result;
     } catch (error) {
       this._isSwitchDataTransfering = false;
-      this.synchronyProfile.emitError(error);
+      this.sensorProfile.emitError(error);
       return false;
     }
   }
@@ -246,7 +246,7 @@ export default class SensorController {
     }
     this._isSwitchDataTransfering = true;
     try {
-      const result = await this.synchronyProfile.stopDataNotification();
+      const result = await this.sensorProfile.stopDataNotification();
       if (result) {
         this._isDataTransfering = false;
       }
@@ -254,7 +254,7 @@ export default class SensorController {
       return result;
     } catch (error) {
       this._isSwitchDataTransfering = false;
-      this.synchronyProfile.emitError(error);
+      this.sensorProfile.emitError(error);
       return false;
     }
   }
@@ -268,13 +268,13 @@ export default class SensorController {
     }
     this._isFetchingPower = true;
     try {
-      const result = await this.synchronyProfile.getBatteryLevel();
+      const result = await this.sensorProfile.getBatteryLevel();
       this._powerCache = result;
       this._isFetchingPower = false;
       return result;
     } catch (error) {
       this._isFetchingPower = false;
-      this.synchronyProfile.emitError(error);
+      this.sensorProfile.emitError(error);
       return -1;
     }
   }
@@ -288,17 +288,17 @@ export default class SensorController {
     }
     this._isFetchingFirmware = true;
     try {
-      const result = await this.synchronyProfile.getControllerFirmwareVersion();
+      const result = await this.sensorProfile.getControllerFirmwareVersion();
       this._isFetchingFirmware = false;
       return result;
     } catch (error) {
       this._isFetchingFirmware = false;
-      this.synchronyProfile.emitError(error);
+      this.sensorProfile.emitError(error);
       return '';
     }
   }
 
-  public async init(): Promise<boolean> {
+  public async init(packageSampleCount: number): Promise<boolean> {
     if (this.connectionState !== DeviceStateEx.Ready) {
       return false;
     }
@@ -314,20 +314,24 @@ export default class SensorController {
     } catch (error) {}
 
     try {
-      this._supportEEG = await this.synchronyProfile.initEEG(10);
+      this._supportEEG = await this.sensorProfile.initEEG(
+        packageSampleCount
+      );
     } catch (error) {
       this._supportEEG = false;
     }
 
     try {
-      this._supportECG = await this.synchronyProfile.initECG(10);
+      this._supportECG = await this.sensorProfile.initECG(
+        packageSampleCount
+      );
     } catch (error) {
       this._supportECG = false;
     }
 
     try {
       if (this._supportEEG || this._supportECG) {
-        this._hasInited = await this.synchronyProfile.initDataTransfer();
+        this._hasInited = await this.sensorProfile.initDataTransfer();
       } else {
         this._hasInited = false;
       }
@@ -337,7 +341,7 @@ export default class SensorController {
     } catch (error) {
       this._isIniting = false;
       this._hasInited = false;
-      this.synchronyProfile.emitError(error);
+      this.sensorProfile.emitError(error);
       return false;
     }
   }

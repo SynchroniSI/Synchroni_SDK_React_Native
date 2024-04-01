@@ -11,6 +11,8 @@ export enum DeviceStateEx {
 }
 
 export enum DataType {
+  NTF_ACC = 0x1,
+  NTF_GYRO = 0x2,
   NTF_EEG = 0x10,
   NTF_ECG = 0x11,
 }

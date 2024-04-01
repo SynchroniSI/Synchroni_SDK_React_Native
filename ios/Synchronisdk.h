@@ -51,11 +51,12 @@ const int TIMEOUT = 5; //5 seconds
 @property (atomic, strong) BLEPeripheral* device;
 @property (atomic, strong) SensorData* eegData;
 @property (atomic, strong) SensorData* ecgData;
+@property (atomic, strong) SensorData* accData;
+@property (atomic, strong) SensorData* gyroData;
 @property (atomic, strong) NSMutableArray* impedanceData;
 @property (atomic, strong) NSMutableArray* saturationData;
 @property (atomic, assign) int lastImpedanceIndex;
 @property (atomic, assign) DataNotifyFlags dataFlag;
-@property (atomic, assign) BOOL hasStartDataTransfer;
 
 -(instancetype)init;
 -(void) sendEvent:(NSString*)name params:(id)params;

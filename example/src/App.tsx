@@ -19,9 +19,13 @@ export default function App() {
   const [eegSample, setEEGSample] = React.useState<string>();
   const [ecgInfo, setECGInfo] = React.useState<string>();
   const [ecgSample, setECGSample] = React.useState<string>();
+  const [accInfo, setAccInfo] = React.useState<string>();
+  const [gyroInfo, setGyroInfo] = React.useState<string>();
   const foundDevices = React.useRef<Array<BLEDevice>>();
   const lastEEG = React.useRef<SensorData>();
   const lastECG = React.useRef<SensorData>();
+  const lastACC = React.useRef<SensorData>();
+  const lastGYRO = React.useRef<SensorData>();
   let loopTimer = React.useRef<NodeJS.Timeout>();
 
   function processSampleData(data: SensorData) {
@@ -36,21 +40,43 @@ export default function App() {
           data.channelSamples[0]![0]!.sampleIndex;
       }
 
-      data.channelSamples.forEach((oneChannelSamples) => {
-        let sample = oneChannelSamples[0];
-        if (sample) {
-          const sampleMsg =
-            ' \n' +
-            (sample.channelIndex + 1) +
-            ' | data: ' +
-            sample.data.toFixed(0) +
-            'uV | ' +
-            ' impedance: ' +
-            (sample.impedance / 1000).toFixed(0) +
-            'K';
-          samplesMsg = samplesMsg + sampleMsg;
-        }
-      });
+      if (data.dataType === DataType.NTF_ACC) {
+        let x = data.channelSamples[0]![0]!;
+        let y = data.channelSamples[1]![0]!;
+        let z = data.channelSamples[2]![0]!;
+        const sampleMsg =
+          ' \n' +
+          ('x: ' + x?.data.toFixed(2) + ' g') +
+          (' | y: ' + y?.data.toFixed(2) + ' g') +
+          (' | z: ' + z?.data.toFixed(2) + ' g');
+        samplesMsg = samplesMsg + sampleMsg;
+      } else if (data.dataType === DataType.NTF_GYRO) {
+        let x = data.channelSamples[0]![0]!;
+        let y = data.channelSamples[1]![0]!;
+        let z = data.channelSamples[2]![0]!;
+        const sampleMsg =
+          ' \n' +
+          ('x: ' + x?.data.toFixed(0) + ' dps') +
+          (' | y: ' + y?.data.toFixed(0) + ' dps') +
+          (' | z: ' + z?.data.toFixed(0) + ' dps');
+        samplesMsg = samplesMsg + sampleMsg;
+      } else {
+        data.channelSamples.forEach((oneChannelSamples) => {
+          let sample = oneChannelSamples[0];
+          if (sample) {
+            const sampleMsg =
+              ' \n' +
+              (sample.channelIndex + 1) +
+              ' | data: ' +
+              sample.data.toFixed(0) +
+              'uV | ' +
+              ' impedance: ' +
+              (sample.impedance / 1000).toFixed(0) +
+              'K';
+            samplesMsg = samplesMsg + sampleMsg;
+          }
+        });
+      }
     }
 
     if (data.dataType === DataType.NTF_EEG) {
@@ -69,6 +95,10 @@ export default function App() {
         data.sampleRate;
       setECGInfo(msg);
       setECGSample(samplesMsg);
+    } else if (data.dataType === DataType.NTF_ACC) {
+      setAccInfo(samplesMsg);
+    } else if (data.dataType === DataType.NTF_GYRO) {
+      setGyroInfo(samplesMsg);
     }
   }
 
@@ -81,8 +111,12 @@ export default function App() {
       loopTimer.current = setInterval(() => {
         const eeg = lastEEG.current;
         const ecg = lastECG.current;
+        const acc = lastACC.current;
+        const gyro = lastGYRO.current;
         if (eeg) processSampleData(eeg);
         if (ecg) processSampleData(ecg);
+        if (acc) processSampleData(acc);
+        if (gyro) processSampleData(gyro);
       }, 1000);
     }
     //callbacks
@@ -91,6 +125,8 @@ export default function App() {
       if (newstate === DeviceStateEx.Disconnected) {
         lastEEG.current = undefined;
         lastECG.current = undefined;
+        lastACC.current = undefined;
+        lastGYRO.current = undefined;
       } else if (newstate === DeviceStateEx.Ready) {
         setDevice(SensorControllerInstance.lastDevice?.Name);
       }
@@ -102,10 +138,15 @@ export default function App() {
 
     SensorControllerInstance.onDataCallback = (data: SensorData) => {
       // setMessage('got data');
+
       if (data.dataType === DataType.NTF_EEG) {
         lastEEG.current = data;
       } else if (data.dataType === DataType.NTF_ECG) {
         lastECG.current = data;
+      } else if (data.dataType === DataType.NTF_ACC) {
+        lastACC.current = data;
+      } else if (data.dataType === DataType.NTF_GYRO) {
+        lastGYRO.current = data;
       }
 
       // process data as you wish
@@ -214,7 +255,7 @@ export default function App() {
             const firmwareVersion =
               await SensorControllerInstance.firmwareVersion();
             const batteryPower = await SensorControllerInstance.batteryPower();
-            const inited = await SensorControllerInstance.init();
+            const inited = await SensorControllerInstance.init(8);
             console.log(
               'Version: ' +
                 firmwareVersion +
@@ -236,6 +277,8 @@ export default function App() {
             setEEGSample('');
             setECGInfo('');
             setECGSample('');
+            setAccInfo('');
+            setGyroInfo('');
           }
         }}
         title="init"
@@ -278,6 +321,9 @@ export default function App() {
       <Text />
       <Text style={styles.text}>ECG sample: {ecgSample} </Text>
       <Text />
+      <Text style={styles.text}>ACC sample: {accInfo} </Text>
+      <Text />
+      <Text style={styles.text}>GYRO sample: {gyroInfo} </Text>
       <Text />
 
       {/* <VConsole
