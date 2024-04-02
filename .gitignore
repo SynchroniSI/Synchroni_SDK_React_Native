@@ -69,6 +69,7 @@ android/keystores/debug.keystore
 !.yarn/versions
 
 # Expo
+.expo/
 
 # Turborepo
 .turbo/
