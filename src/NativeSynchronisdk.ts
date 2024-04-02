@@ -62,6 +62,4 @@ export interface Spec extends TurboModule {
   getDeviceState(): DeviceStateEx;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>(
-  'Synchronisdk'
-);
+export default TurboModuleRegistry.getEnforcing<Spec>('Synchronisdk');

@@ -1,6 +1,10 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import SensorProfile from './SensorProfile';
-import { DeviceStateEx, type BLEDevice, type SensorData } from './NativeSynchronisdk';
+import {
+  DeviceStateEx,
+  type BLEDevice,
+  type SensorData,
+} from './NativeSynchronisdk';
 
 export default class SensorController {
   private static _instance: SensorController;
@@ -314,17 +318,13 @@ export default class SensorController {
     } catch (error) {}
 
     try {
-      this._supportEEG = await this.sensorProfile.initEEG(
-        packageSampleCount
-      );
+      this._supportEEG = await this.sensorProfile.initEEG(packageSampleCount);
     } catch (error) {
       this._supportEEG = false;
     }
 
     try {
-      this._supportECG = await this.sensorProfile.initECG(
-        packageSampleCount
-      );
+      this._supportECG = await this.sensorProfile.initECG(packageSampleCount);
     } catch (error) {
       this._supportECG = false;
     }

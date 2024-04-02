@@ -1,10 +1,6 @@
 import { DeviceStateEx, DataType } from './NativeSynchronisdk';
 
-import type {
-  BLEDevice,
-  Sample,
-  SensorData,
-} from './NativeSynchronisdk';
+import type { BLEDevice, Sample, SensorData } from './NativeSynchronisdk';
 
 export { DeviceStateEx, DataType };
 
