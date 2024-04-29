@@ -7,9 +7,10 @@ import {
   type BLEDevice,
   type SensorData,
   DataType,
-} from 'react-native-synchronisdk';
+} from '@synchroni/synchroni_sdk_react_native';
 
 const SensorControllerInstance = SensorController.Instance;
+const PackageSampleCount = 8;
 
 export default function App() {
   const [device, setDevice] = React.useState<string>();
@@ -33,11 +34,7 @@ export default function App() {
     if (data.channelSamples.length > 0) {
       if (data.channelSamples[0]!.length > 0) {
         samplesMsg =
-          'time: ' +
-          data.channelSamples[0]![0]!.timeStampInMs +
-          'ms' +
-          ' index: ' +
-          data.channelSamples[0]![0]!.sampleIndex;
+          'time: ' + ' index: ' + data.channelSamples[0]![0]!.sampleIndex;
       }
 
       if (data.dataType === DataType.NTF_ACC) {
@@ -66,8 +63,7 @@ export default function App() {
           if (sample) {
             const sampleMsg =
               ' \n' +
-              (sample.channelIndex + 1) +
-              ' | data: ' +
+              ' data: ' +
               sample.data.toFixed(0) +
               'uV | ' +
               ' impedance: ' +
@@ -83,16 +79,16 @@ export default function App() {
       const msg =
         'channel count:' +
         data.channelCount +
-        ' sample rate: ' +
-        data.sampleRate;
+        ' sample count: ' +
+        data.channelSamples[0]!.length;
       setEEGInfo(msg);
       setEEGSample(samplesMsg);
     } else if (data.dataType === DataType.NTF_ECG) {
       const msg =
         'channel count:' +
         data.channelCount +
-        ' sample rate: ' +
-        data.sampleRate;
+        ' sample count: ' +
+        data.packageSampleCount;
       setECGInfo(msg);
       setECGSample(samplesMsg);
     } else if (data.dataType === DataType.NTF_ACC) {
@@ -105,7 +101,9 @@ export default function App() {
   React.useEffect(() => {
     //init
     setState(SensorControllerInstance.connectionState);
-    setDevice(SensorControllerInstance.lastDevice?.Name);
+    if (SensorControllerInstance.lastDevice) {
+      setDevice('==>' + SensorControllerInstance.lastDevice?.Name);
+    }
 
     if (!loopTimer.current) {
       loopTimer.current = setInterval(() => {
@@ -128,12 +126,33 @@ export default function App() {
         lastACC.current = undefined;
         lastGYRO.current = undefined;
       } else if (newstate === DeviceStateEx.Ready) {
-        setDevice(SensorControllerInstance.lastDevice?.Name);
+        setDevice('==>' + SensorControllerInstance.lastDevice?.Name);
       }
     };
 
     SensorControllerInstance.onErrorCallback = (reason: string) => {
       setMessage('got error: ' + reason);
+    };
+
+    SensorControllerInstance.onDeviceCallback = (devices: BLEDevice[]) => {
+      let filterDevices = devices.filter((item) => {
+        //filter OB serials
+        return item.Name.startsWith('OB');
+      });
+
+      let deviceList = '';
+      filterDevices.forEach((bleDevice) => {
+        deviceList += '\n' + bleDevice.RSSI + ' | ' + bleDevice.Name;
+      });
+      if (
+        SensorControllerInstance.lastDevice &&
+        SensorControllerInstance.connectionState === DeviceStateEx.Ready
+      ) {
+        deviceList += '\n ==>' + SensorControllerInstance.lastDevice?.Name;
+      }
+
+      setDevice(deviceList);
+      foundDevices.current = filterDevices;
     };
 
     SensorControllerInstance.onDataCallback = (data: SensorData) => {
@@ -169,35 +188,24 @@ export default function App() {
         onPress={() => {
           //scan logic
           if (
-            SensorControllerInstance.connectionState !==
-            DeviceStateEx.Disconnected
+            SensorControllerInstance.connectionState >= DeviceStateEx.Invalid
           ) {
-            setMessage('please scan if disconnected');
+            setMessage('please open bluetooth');
             return;
           }
 
-          setMessage('scanning');
-          SensorControllerInstance.startSearch(3000)
-            .then((devices) => {
-              setMessage('');
-              let filterDevices = devices.filter((item) => {
-                //filter OB serials
-                return item.Name.startsWith('OB');
-              });
-
-              let deviceList = '';
-              filterDevices.forEach((bleDevice) => {
-                deviceList += '\n' + bleDevice.RSSI + ' | ' + bleDevice.Name;
-              });
-              setDevice(deviceList);
-              foundDevices.current = filterDevices;
-            })
-            .catch((error: Error) => {
+          if (!SensorControllerInstance.isScaning) {
+            setMessage('scanning');
+            SensorControllerInstance.startScan(6000).catch((error: Error) => {
               setDevice('');
               setMessage(error.message);
             });
+          } else {
+            setMessage('stop scan');
+            SensorControllerInstance.stopScan();
+          }
         }}
-        title="search"
+        title="scan/stop"
       />
       <Text />
 
@@ -228,7 +236,7 @@ export default function App() {
               }
             });
             if (selected) {
-              setMessage('connect');
+              setMessage('connect: ' + selected.Name);
               SensorControllerInstance.connect(selected);
             }
           }
@@ -249,13 +257,15 @@ export default function App() {
 
           if (
             SensorControllerInstance.connectionState === DeviceStateEx.Ready &&
-            !SensorControllerInstance.hasInited
+            !SensorControllerInstance.hasInited &&
+            !SensorControllerInstance.isIniting
           ) {
             setMessage('initing');
             const firmwareVersion =
               await SensorControllerInstance.firmwareVersion();
             const batteryPower = await SensorControllerInstance.batteryPower();
-            const inited = await SensorControllerInstance.init(8);
+            const inited =
+              await SensorControllerInstance.init(PackageSampleCount);
             console.log(
               'Version: ' +
                 firmwareVersion +

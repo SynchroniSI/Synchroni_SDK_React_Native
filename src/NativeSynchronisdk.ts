@@ -24,31 +24,31 @@ export type BLEDevice = {
 };
 
 export type Sample = {
-  rawData: number;
+  // rawData: number;
   data: number;
   impedance: number;
   saturation: number;
-  timeStampInMs: number;
+  // timeStampInMs: number;
   sampleIndex: number;
-  channelIndex: number;
+  // channelIndex: number;
   isLost: boolean;
 };
 
 export type SensorData = {
   dataType: DataType;
-  resolutionBits: number;
+  // resolutionBits: number;
   sampleRate: number;
   channelCount: number;
-  channelMask: number;
+  // channelMask: number;
   packageSampleCount: number;
-  K: number;
+  // K: number;
   channelSamples: Array<Array<Sample>>; //First array is channel, second array is samples
 };
 
 export interface Spec extends TurboModule {
   addListener(eventType: string): void;
   removeListeners(count: number): void;
-  startScan(timeoutInMs: number): Promise<Array<BLEDevice>>;
+  startScan(periodInMs: number): Promise<boolean>;
   stopScan(): Promise<void>;
   connect(device: BLEDevice): Promise<boolean>;
   disconnect(): Promise<boolean>;
@@ -60,6 +60,7 @@ export interface Spec extends TurboModule {
   getBatteryLevel(): Promise<number>;
   getControllerFirmwareVersion(): Promise<string>;
   getDeviceState(): DeviceStateEx;
+  isScaning(): boolean;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Synchronisdk');

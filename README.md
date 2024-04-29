@@ -37,7 +37,7 @@ import {
   type BLEDevice,
   type SynchroniData,
   DataType,
-} from 'react-native-synchronisdk';
+} from '@synchroni/synchroni_sdk_react_native';
 
 ```
 

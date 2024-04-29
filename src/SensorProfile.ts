@@ -14,6 +14,7 @@ export default class SensorProfile {
   private onError: EmitterSubscription | undefined;
   private onData: EmitterSubscription | undefined;
   private onStateChanged: EmitterSubscription | undefined;
+  private onDevice: EmitterSubscription | undefined;
 
   constructor(callback: (newstate: DeviceStateEx) => void) {
     this.nativeEventEmitter = new NativeEventEmitter(Synchronisdk);
@@ -69,6 +70,24 @@ export default class SensorProfile {
     this.onData = undefined;
   }
 
+  AddOnDeviceCallback(callback: (deviceList: Array<BLEDevice>) => void) {
+    this.RemoveOnDataCallback();
+    this.onDevice = this.nativeEventEmitter.addListener(
+      'GOT_DEVICE_LIST',
+      (deviceList: Array<BLEDevice>) => {
+        callback(deviceList);
+      }
+    );
+  }
+  RemoveOnDeviceCallback() {
+    if (this.onDevice !== undefined) this.onDevice.remove();
+    this.onDevice = undefined;
+  }
+
+  isScaning(): boolean {
+    return Synchronisdk.isScaning();
+  }
+
   getDeviceState(): DeviceStateEx {
     let value = Synchronisdk.getDeviceState();
     if (value === 'Disconnected') {
@@ -91,8 +110,8 @@ export default class SensorProfile {
     this.nativeEventEmitter.emit('GOT_ERROR', error);
   }
 
-  startScan(timeoutInMs: number): Promise<Array<BLEDevice>> {
-    return Synchronisdk.startScan(timeoutInMs);
+  startScan(periodInMs: number): Promise<boolean> {
+    return Synchronisdk.startScan(periodInMs);
   }
   stopScan(): Promise<void> {
     return Synchronisdk.stopScan();

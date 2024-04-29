@@ -13,7 +13,6 @@ export default class SensorController {
   private _supportEEG: boolean;
   private _supportECG: boolean;
   private _hasInited: boolean;
-  private _isSearching: boolean;
   private _isIniting: boolean;
   private _isFetchingPower: boolean;
   private _isFetchingFirmware: boolean;
@@ -31,9 +30,7 @@ export default class SensorController {
       this._isFetchingPower =
       this._isFetchingFirmware =
       this._isSwitchDataTransfering =
-      this._isSearching =
         false;
-    // this._device = null;
     this._powerCache = -1;
   }
 
@@ -46,7 +43,6 @@ export default class SensorController {
       this._isFetchingPower =
       this._isFetchingFirmware =
       this._isSwitchDataTransfering =
-      this._isSearching =
         false;
     this._device = null;
     this._powerCache = -1;
@@ -68,6 +64,14 @@ export default class SensorController {
 
   public get connectionState(): DeviceStateEx {
     return this.sensorProfile.getDeviceState();
+  }
+
+  public get isScaning(): boolean {
+    return this.sensorProfile.isScaning();
+  }
+
+  public get isIniting(): boolean {
+    return this._isIniting;
   }
 
   public get supportEEG(): boolean {
@@ -114,6 +118,16 @@ export default class SensorController {
     }
   }
 
+  public set onDeviceCallback(
+    callback: (deviceList: Array<BLEDevice>) => void
+  ) {
+    if (callback) {
+      this.sensorProfile.AddOnDeviceCallback(callback);
+    } else {
+      this.sensorProfile.RemoveOnDeviceCallback();
+    }
+  }
+
   private async requestPermissionAndroid(): Promise<boolean> {
     try {
       const p1 = PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION!;
@@ -147,13 +161,8 @@ export default class SensorController {
     }
   }
 
-  public async startSearch(timeoutInMs: number): Promise<Array<BLEDevice>> {
-    return new Promise<Array<BLEDevice>>(async (resolve, reject) => {
-      if (this.connectionState !== DeviceStateEx.Disconnected) {
-        reject('please search when disconnected');
-        return;
-      }
-
+  public async startScan(periodInMs: number): Promise<boolean> {
+    return new Promise<boolean>(async (resolve, reject) => {
       if (Platform.OS !== 'ios') {
         const result = await this.requestPermissionAndroid();
         if (!result) {
@@ -163,30 +172,24 @@ export default class SensorController {
         }
       }
 
-      if (this._isSearching) {
+      if (this.isScaning) {
         reject('please search after search return');
         return;
       }
-      this._isSearching = true;
 
       this.sensorProfile
-        .startScan(timeoutInMs)
-        .then((devices: BLEDevice[]) => {
-          this._isSearching = false;
-          resolve(devices);
+        .startScan(periodInMs)
+        .then((result: boolean) => {
+          resolve(result);
         })
         .catch((reason: Error) => {
-          this._isSearching = false;
           reject(reason.message);
         });
     });
   }
 
-  public async stopSearch(): Promise<void> {
-    if (this.connectionState !== DeviceStateEx.Ready) {
-      return;
-    }
-    if (!this._isSearching) {
+  public async stopScan(): Promise<void> {
+    if (!this.isScaning) {
       return;
     }
     return this.sensorProfile.stopScan();
@@ -305,9 +308,6 @@ export default class SensorController {
   public async init(packageSampleCount: number): Promise<boolean> {
     if (this.connectionState !== DeviceStateEx.Ready) {
       return false;
-    }
-    if (this._isIniting) {
-      return this._hasInited;
     }
     if (this._hasInited) {
       return this._hasInited;

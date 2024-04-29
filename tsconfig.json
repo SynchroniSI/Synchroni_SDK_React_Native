@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-synchronisdk": ["./src/index"]
+      "@synchroni/synchroni_sdk_react_native": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
