@@ -1,132 +1,150 @@
 import { PermissionsAndroid, Platform } from 'react-native';
+import type { EmitterSubscription } from 'react-native';
+import { NativeEventEmitter } from 'react-native';
 import SensorProfile from './SensorProfile';
+import { Synchronisdk } from './ModuleResolver';
 import {
   DeviceStateEx,
   type BLEDevice,
+  type EventResult,
   type SensorData,
 } from './NativeSynchronisdk';
 
 export default class SensorController {
   private static _instance: SensorController;
+  private sensorProfiles: Array<SensorProfile>;
+  private sensorProfileMap: Map<string, SensorProfile>;
 
-  private sensorProfile: SensorProfile;
-  private _supportEEG: boolean;
-  private _supportECG: boolean;
-  private _hasInited: boolean;
-  private _isIniting: boolean;
-  private _isFetchingPower: boolean;
-  private _isFetchingFirmware: boolean;
-  private _isDataTransfering: boolean;
-  private _isSwitchDataTransfering: boolean;
-  private _device: BLEDevice | null;
-  private _powerCache: number;
-
-  private _reset(): void {
-    this._supportEEG =
-      this._supportECG =
-      this._hasInited =
-      this._isDataTransfering =
-      this._isIniting =
-      this._isFetchingPower =
-      this._isFetchingFirmware =
-      this._isSwitchDataTransfering =
-        false;
-    this._powerCache = -1;
-  }
-
-  private constructor() {
-    this._supportEEG =
-      this._supportECG =
-      this._hasInited =
-      this._isDataTransfering =
-      this._isIniting =
-      this._isFetchingPower =
-      this._isFetchingFirmware =
-      this._isSwitchDataTransfering =
-        false;
-    this._device = null;
-    this._powerCache = -1;
-
-    this.sensorProfile = new SensorProfile((newstate: DeviceStateEx) => {
-      if (newstate === DeviceStateEx.Disconnected) {
-        this._reset();
-      }
-    });
-
-    if (this.connectionState === DeviceStateEx.Ready) {
-      this.sensorProfile.disconnect();
-    }
-  }
+  protected nativeEventEmitter: NativeEventEmitter;
+  private onDevice: EmitterSubscription | undefined;
 
   public static get Instance() {
     return this._instance || (this._instance = new this());
   }
 
-  public get connectionState(): DeviceStateEx {
-    return this.sensorProfile.getDeviceState();
-  }
+  private constructor() {
+    this.sensorProfileMap = new Map<string, SensorProfile>();
+    this.sensorProfiles = new Array<SensorProfile>(0);
+    this.nativeEventEmitter = new NativeEventEmitter(Synchronisdk);
+    this.nativeEventEmitter.addListener(
+      'STATE_CHANGED',
+      (state: EventResult) => {
+        this.dispatchEvent('STATE_CHANGED', state);
+      }
+    );
 
-  public get isScaning(): boolean {
-    return this.sensorProfile.isScaning();
-  }
+    this.nativeEventEmitter.addListener('GOT_DATA', (data: SensorData) => {
+      this.dispatchData('GOT_DATA', data);
+    });
 
-  public get isIniting(): boolean {
-    return this._isIniting;
-  }
-
-  public get supportEEG(): boolean {
-    return this._supportEEG;
-  }
-
-  public get supportECG(): boolean {
-    return this._supportECG;
-  }
-
-  public get hasInited(): boolean {
-    return this._hasInited;
-  }
-
-  public get isDataTransfering(): boolean {
-    return this._isDataTransfering;
-  }
-
-  public get lastDevice(): BLEDevice | null {
-    return this._device;
-  }
-
-  public set onStateChanged(callback: (newstate: DeviceStateEx) => void) {
-    if (callback) {
-      this.sensorProfile.AddOnStateChanged(callback);
-    } else {
-      this.sensorProfile.RemoveOnStateChanged();
-    }
-  }
-
-  public set onErrorCallback(callback: (reason: string) => void) {
-    if (callback) {
-      this.sensorProfile.AddOnErrorCallback(callback);
-    } else {
-      this.sensorProfile.RemoveOnErrorCallback();
-    }
-  }
-
-  public set onDataCallback(callback: (signalData: SensorData) => void) {
-    if (callback) {
-      this.sensorProfile.AddOnDataCallback(callback);
-    } else {
-      this.sensorProfile.RemoveOnDataCallback();
-    }
+    this.nativeEventEmitter.addListener('GOT_ERROR', (error: EventResult) => {
+      this.dispatchEvent('GOT_ERROR', error);
+    });
   }
 
   public set onDeviceCallback(
     callback: (deviceList: Array<BLEDevice>) => void
   ) {
     if (callback) {
-      this.sensorProfile.AddOnDeviceCallback(callback);
+      this.AddOnDeviceCallback(callback);
     } else {
-      this.sensorProfile.RemoveOnDeviceCallback();
+      this.RemoveOnDeviceCallback();
     }
   }
+
+  private AddOnDeviceCallback(
+    callback: (deviceList: Array<BLEDevice>) => void
+  ) {
+    this.RemoveOnDeviceCallback();
+    this.onDevice = this.nativeEventEmitter.addListener(
+      'GOT_DEVICE_LIST',
+      (deviceList: Array<BLEDevice>) => {
+        callback(deviceList);
+      }
+    );
+  }
+
+  private RemoveOnDeviceCallback() {
+    if (this.onDevice !== undefined) this.onDevice.remove();
+    this.onDevice = undefined;
+  }
+
+  /////////////////////////////////////////////////////////
+
+  startScan = async (periodInMs: number): Promise<boolean> => {
+    return new Promise<boolean>(async (resolve, reject) => {
+      if (Platform.OS !== 'ios') {
+        const result = await this.requestPermissionAndroid();
+        if (!result) {
+          console.log('request permisson fail');
+          reject('request permisson fail');
+          return;
+        }
+      }
+
+      if (this.isScaning) {
+        reject('please search after search return');
+        return;
+      }
+
+      this._startScan(periodInMs)
+        .then((result: boolean) => {
+          resolve(result);
+        })
+        .catch((reason: Error) => {
+          reject(reason.message);
+        });
+    });
+  };
+
+  stopScan = async (): Promise<void> => {
+    if (!this.isScaning) {
+      return;
+    }
+    return this._stopScan();
+  };
+
+  public get isScaning(): boolean {
+    return Synchronisdk.isScaning();
+  }
+
+  public get isEnable(): boolean {
+    return Synchronisdk.isEnable();
+  }
+
+  requireSensor = (device: BLEDevice): SensorProfile => {
+    const deviceMac = device.Address;
+    if (this.sensorProfileMap.has(deviceMac)) {
+      return this.sensorProfileMap.get(deviceMac)!;
+    }
+    const sensorProfile = new SensorProfile(device);
+    this.sensorProfileMap.set(deviceMac, sensorProfile);
+    this.sensorProfiles.push(sensorProfile);
+    return sensorProfile;
+  };
+
+  getSensor = (deviceMac: string): SensorProfile | undefined => {
+    return this.sensorProfileMap.get(deviceMac);
+  };
+
+  getConnectedSensors = (): SensorProfile[] => {
+    let filterDevices = this.sensorProfiles.filter((item) => {
+      return item.deviceState === DeviceStateEx.Ready;
+    });
+    return filterDevices;
+  };
+
+  getConnectedDevices = (): BLEDevice[] => {
+    let devices = new Array<BLEDevice>(0);
+    this.sensorProfiles.filter((item) => {
+      if (item.deviceState === DeviceStateEx.Ready) {
+        devices.push(item.BLEDevice);
+      }
+      return false;
+    });
+    return devices;
+  };
+  ////////////////////////////////////////////
 
   private async requestPermissionAndroid(): Promise<boolean> {
     try {
@@ -161,188 +179,29 @@ export default class SensorController {
     }
   }
 
-  public async startScan(periodInMs: number): Promise<boolean> {
-    return new Promise<boolean>(async (resolve, reject) => {
-      if (Platform.OS !== 'ios') {
-        const result = await this.requestPermissionAndroid();
-        if (!result) {
-          console.log('request permisson fail');
-          reject('request permisson fail');
-          return;
-        }
+  private _startScan(periodInMs: number): Promise<boolean> {
+    return Synchronisdk.startScan(periodInMs);
+  }
+
+  private _stopScan(): Promise<void> {
+    return Synchronisdk.stopScan();
+  }
+
+  private dispatchEvent(event: String, eventResult: EventResult) {
+    var device = this.getSensor(eventResult.deviceMac);
+    if (device) {
+      if (event === 'STATE_CHANGED') {
+        device.emitStateChanged(eventResult.newState);
+      } else if (event === 'GOT_ERROR') {
+        device.emitError(eventResult.errMsg);
       }
-
-      if (this.isScaning) {
-        reject('please search after search return');
-        return;
-      }
-
-      this.sensorProfile
-        .startScan(periodInMs)
-        .then((result: boolean) => {
-          resolve(result);
-        })
-        .catch((reason: Error) => {
-          reject(reason.message);
-        });
-    });
-  }
-
-  public async stopScan(): Promise<void> {
-    if (!this.isScaning) {
-      return;
-    }
-    return this.sensorProfile.stopScan();
-  }
-
-  public async connect(device: BLEDevice): Promise<boolean> {
-    if (
-      !(
-        this.connectionState === DeviceStateEx.Disconnected ||
-        this.connectionState === DeviceStateEx.Connected
-      )
-    ) {
-      return false;
-    }
-    this._device = device;
-    return this.sensorProfile.connect(device);
-  }
-
-  public async disconnect(): Promise<boolean> {
-    if (
-      !(
-        this.connectionState === DeviceStateEx.Ready ||
-        this.connectionState === DeviceStateEx.Connected
-      )
-    ) {
-      return false;
-    }
-    this.stopDataNotification();
-    this._reset();
-    return this.sensorProfile.disconnect();
-  }
-
-  public async startDataNotification(): Promise<boolean> {
-    if (this.connectionState !== DeviceStateEx.Ready) {
-      return false;
-    }
-    if (this._isSwitchDataTransfering) {
-      return false;
-    }
-    this._isSwitchDataTransfering = true;
-    try {
-      const result = await this.sensorProfile.startDataNotification();
-      if (result) {
-        this._isDataTransfering = true;
-      }
-      this._isSwitchDataTransfering = false;
-      return result;
-    } catch (error) {
-      this._isSwitchDataTransfering = false;
-      this.sensorProfile.emitError(error);
-      return false;
     }
   }
 
-  public async stopDataNotification(): Promise<boolean> {
-    if (this.connectionState !== DeviceStateEx.Ready) {
-      return false;
-    }
-    if (this._isSwitchDataTransfering) {
-      return false;
-    }
-    this._isSwitchDataTransfering = true;
-    try {
-      const result = await this.sensorProfile.stopDataNotification();
-      if (result) {
-        this._isDataTransfering = false;
-      }
-      this._isSwitchDataTransfering = false;
-      return result;
-    } catch (error) {
-      this._isSwitchDataTransfering = false;
-      this.sensorProfile.emitError(error);
-      return false;
-    }
-  }
-
-  public async batteryPower(): Promise<number> {
-    if (this.connectionState !== DeviceStateEx.Ready) {
-      return -1;
-    }
-    if (this._isFetchingPower) {
-      return this._powerCache;
-    }
-    this._isFetchingPower = true;
-    try {
-      const result = await this.sensorProfile.getBatteryLevel();
-      this._powerCache = result;
-      this._isFetchingPower = false;
-      return result;
-    } catch (error) {
-      this._isFetchingPower = false;
-      this.sensorProfile.emitError(error);
-      return -1;
-    }
-  }
-
-  public async firmwareVersion(): Promise<string> {
-    if (this.connectionState !== DeviceStateEx.Ready) {
-      return '';
-    }
-    if (this._isFetchingFirmware) {
-      return '';
-    }
-    this._isFetchingFirmware = true;
-    try {
-      const result = await this.sensorProfile.getControllerFirmwareVersion();
-      this._isFetchingFirmware = false;
-      return result;
-    } catch (error) {
-      this._isFetchingFirmware = false;
-      this.sensorProfile.emitError(error);
-      return '';
-    }
-  }
-
-  public async init(packageSampleCount: number): Promise<boolean> {
-    if (this.connectionState !== DeviceStateEx.Ready) {
-      return false;
-    }
-    if (this._hasInited) {
-      return this._hasInited;
-    }
-    this._isIniting = true;
-    try {
-      await this.stopDataNotification();
-    } catch (error) {}
-
-    try {
-      this._supportEEG = await this.sensorProfile.initEEG(packageSampleCount);
-    } catch (error) {
-      this._supportEEG = false;
-    }
-
-    try {
-      this._supportECG = await this.sensorProfile.initECG(packageSampleCount);
-    } catch (error) {
-      this._supportECG = false;
-    }
-
-    try {
-      if (this._supportEEG || this._supportECG) {
-        this._hasInited = await this.sensorProfile.initDataTransfer();
-      } else {
-        this._hasInited = false;
-      }
-      // console.log(this._supportEEG + "|" + this._supportECG + "|" + this._hasInited);
-      this._isIniting = false;
-      return this._hasInited;
-    } catch (error) {
-      this._isIniting = false;
-      this._hasInited = false;
-      this.sensorProfile.emitError(error);
-      return false;
+  private dispatchData(_: String, sensorData: SensorData) {
+    var device = this.getSensor(sensorData.deviceMac);
+    if (device) {
+      device.emitOnData(sensorData);
     }
   }
 }

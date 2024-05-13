@@ -27,43 +27,50 @@ abstract class SynchronisdkSpec extends ReactContextBaseJavaModule {
   @DoNotStrip
   public abstract void stopScan(Promise promise);
 
-  @ReactMethod
-  @DoNotStrip
-  public abstract void connect(ReadableMap bleDevice, Promise promise);
-
-  @ReactMethod
-  @DoNotStrip
-  public abstract void disconnect(Promise promise);
-
-  @ReactMethod
-  @DoNotStrip
-  public abstract void startDataNotification(Promise promise);
-
-  @ReactMethod
-  @DoNotStrip
-  public abstract void stopDataNotification(Promise promise);
-
-  @ReactMethod
-  @DoNotStrip
-  public abstract void initEEG(double packageSampleCount, Promise promise);
-  @ReactMethod
-  @DoNotStrip
-  public abstract void initECG(double packageSampleCount, Promise promise);
-  @ReactMethod
-  @DoNotStrip
-  public abstract void initDataTransfer(Promise promise);
-  @ReactMethod
-  @DoNotStrip
-  public abstract void getBatteryLevel(Promise promise);
-  @ReactMethod
-  @DoNotStrip
-  public abstract void getControllerFirmwareVersion(Promise promise);
-  ////////////////////////////////////////////////////////////////////////////////////////////
-  @ReactMethod(isBlockingSynchronousMethod = true)
-  @DoNotStrip
-  public abstract String getDeviceState();
-
   @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
   public abstract boolean isScaning();
+
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  @DoNotStrip
+  public abstract boolean isEnable();
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  @DoNotStrip
+  public abstract boolean initSensor(String deviceMac);
+  @ReactMethod
+  @DoNotStrip
+  public abstract void connect(String deviceMac, Promise promise);
+
+  @ReactMethod
+  @DoNotStrip
+  public abstract void disconnect(String deviceMac, Promise promise);
+
+  @ReactMethod
+  @DoNotStrip
+  public abstract void startDataNotification(String deviceMac, Promise promise);
+
+  @ReactMethod
+  @DoNotStrip
+  public abstract void stopDataNotification(String deviceMac, Promise promise);
+
+  @ReactMethod
+  @DoNotStrip
+  public abstract void initEEG(String deviceMac, double packageSampleCount, Promise promise);
+  @ReactMethod
+  @DoNotStrip
+  public abstract void initECG(String deviceMac, double packageSampleCount, Promise promise);
+  @ReactMethod
+  @DoNotStrip
+  public abstract void initDataTransfer(String deviceMac, Promise promise);
+  @ReactMethod
+  @DoNotStrip
+  public abstract void getBatteryLevel(String deviceMac, Promise promise);
+  @ReactMethod
+  @DoNotStrip
+  public abstract void getControllerFirmwareVersion(String deviceMac, Promise promise);
+  ////////////////////////////////////////////////////////////////////////////////////////////
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  @DoNotStrip
+  public abstract String getDeviceState(String deviceMac);
+
 }

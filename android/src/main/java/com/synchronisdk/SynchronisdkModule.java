@@ -23,7 +23,9 @@ import com.sensor.CommandResponseCallback;
 import com.sensor.DataNotificationCallback;
 import com.sensor.ScanCallback;
 import com.sensor.SensorProfile;
+import com.sensor.SensorScaner;
 
+import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
@@ -41,6 +43,8 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   private DataNotificationCallback dataCallback;
 
   static class SensorData {
+    public String deviceMac;
+    public String deviceName;
     public int dataType;
     public int lastPackageCounter;
     public int lastPackageIndex;
@@ -68,18 +72,38 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     public void clear(){
       lastPackageCounter = 0;
       lastPackageIndex = 0;
+      channelSamples = null;
     }
   }
-  private volatile SensorData sensorData[] = new SensorData[DATA_TYPE_COUNT];
 
-  private volatile Vector<Float> impedanceData = new Vector<Float>();
-  private volatile Vector<Float> saturationData = new Vector<Float>();
-  private int notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
+  static class SensorDataContext {
+    String deviceMac;
+    SensorData sensorData[];
+    Vector<Float> impedanceData;
+    Vector<Float> saturationData;
+    int notifyDataFlag;
 
-  private SensorProfile sensorProfile;
-
+    public SensorDataContext(String _deviceMac){
+      deviceMac = _deviceMac;
+      sensorData = new SensorData[DATA_TYPE_COUNT];
+      impedanceData = new Vector<Float>();
+      saturationData = new Vector<Float>();
+      notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
+    }
+    public void clear(){
+      for (int index = 0;index < DATA_TYPE_COUNT;++index){
+        if (sensorData[index] != null){
+          sensorData[index].clear();
+        }
+      }
+      impedanceData.clear();
+      saturationData.clear();
+      notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
+    }
+  }
+  private HashMap<String, SensorDataContext> sensorDataContextMap;
+  private SensorScaner sensorScaner;
   private int listenerCount = 0;
-
   private boolean isScaning = false;
   private Timer scanTimer;
 
@@ -121,7 +145,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     accum = accum | (b[offset + 3] & 0xff) << 24;
     return Float.intBitsToFloat(accum);
   }
-  private boolean checkReadSamples(byte[] data, SensorData sensorData, int dataOffset){
+  private boolean checkReadSamples(byte[] data, SensorDataContext ctx, SensorData sensorData, int dataOffset){
     int offset = 1;
     try{
       int packageIndex = ((data[offset + 1] & 0xff) << 8 | (data[offset] & 0xff));
@@ -140,7 +164,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       if (deltaPackageIndex > 1){
         int lostSampleCount = sensorData.packageSampleCount * (deltaPackageIndex - 1);
         //add missing samples
-        readSamples(data, sensorData, 0, lostSampleCount);
+        readSamples(data, ctx, sensorData, 0, lostSampleCount);
         if (newPackageIndex == 0){
           sensorData.lastPackageIndex = 65535;
         }else{
@@ -148,7 +172,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
         }
         sensorData.lastPackageCounter += (deltaPackageIndex - 1);
       }
-      readSamples(data, sensorData, dataOffset, 0);
+      readSamples(data, ctx, sensorData, dataOffset, 0);
       sensorData.lastPackageIndex = newPackageIndex;
       sensorData.lastPackageCounter++;
     }catch (Exception e){
@@ -157,7 +181,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     }
     return true;
   }
-  private void readSamples(byte[] data, SensorData sensorData, int offset, int lostSampleCount){
+  private void readSamples(byte[] data, SensorDataContext ctx,SensorData sensorData, int offset, int lostSampleCount){
     int sampleCount = sensorData.packageSampleCount;
     int sampleInterval = 1000 / sensorData.sampleRate; // sample rate should be less than 1000
     if (lostSampleCount > 0)
@@ -166,8 +190,8 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     double K = sensorData.K;
     int lastSampleIndex = sensorData.lastPackageCounter * sensorData.packageSampleCount;
 
-    Vector<Float> _impedanceData = impedanceData;
-    Vector<Float> _saturationData = saturationData;
+    Vector<Float> _impedanceData = ctx.impedanceData;
+    Vector<Float> _saturationData = ctx.saturationData;
 
     Vector<Vector<SensorData.Sample>> channelSamples ;
     if (sensorData.channelSamples == null){
@@ -187,7 +211,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           float impedance = 0;
           float saturation = 0;
           if (sensorData.dataType == SensorProfile.NotifDataType.NTF_ECG){
-            impedanceChannelIndex = this.sensorData[DATA_TYPE_EEG].channelCount;
+            impedanceChannelIndex = ctx.sensorData[DATA_TYPE_EEG].channelCount;
           }
           if ((impedanceChannelIndex >= 0) && (impedanceChannelIndex < _impedanceData.size())){
             impedance = _impedanceData.get(impedanceChannelIndex);
@@ -234,7 +258,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     sensorData.channelSamples = channelSamples;
   }
 
-  private void sendSensorData(ReactContext reactContext, SensorData sensorData){
+  private void sendSensorData(ReactContext reactContext, SensorDataContext ctx, SensorData sensorData){
     Vector<Vector<SensorData.Sample>> channelSamples = sensorData.channelSamples;
     sensorData.channelSamples = null;
 
@@ -243,6 +267,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     }
 
     WritableMap result = Arguments.createMap();
+    result.putString("deviceMac", ctx.deviceMac);
     result.putInt("dataType", sensorData.dataType);
 //    result.putInt("resolutionBits", sensorData.resolutionBits);
     result.putInt("sampleRate", sensorData.sampleRate);
@@ -277,17 +302,13 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     sendEvent(reactContext, "GOT_DATA", result);
   }
 
-  private void clearSamples(){
-    impedanceData.clear();
-    saturationData.clear();
-    for (int index = 0;index < DATA_TYPE_COUNT;++index){
-      if (sensorData[index] == null)
-        continue;
-      sensorData[index].clear();
-    }
+  private void initDataContext(String deviceMac){
+    SensorDataContext ctx = new SensorDataContext(deviceMac);
+    sensorDataContextMap.put(deviceMac, ctx);
+    initACC_GYRO(ctx);
   }
 
-  private void initACC_GYRO(){
+  private void initACC_GYRO(SensorDataContext ctx){
     SensorData data = new SensorData();
     data.dataType = SensorProfile.NotifDataType.NTF_ACC_DATA;
     data.sampleRate = 50;
@@ -297,7 +318,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     data.packageSampleCount = 1;
     data.K = 1 / 8192.0;
     data.clear();
-    sensorData[DATA_TYPE_ACC] = data;
+    ctx.sensorData[DATA_TYPE_ACC] = data;
 
     SensorData data2 = new SensorData();
     data2.dataType = SensorProfile.NotifDataType.NTF_GYO_DATA;
@@ -308,72 +329,61 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     data2.packageSampleCount = 1;
     data2.K = 1 / 16.4;
     data2.clear();
-    sensorData[DATA_TYPE_GYRO] = data2;
+    ctx.sensorData[DATA_TYPE_GYRO] = data2;
   }
 
   SynchronisdkModule(ReactApplicationContext context) {
     super(context);
+    sensorScaner = SensorScaner.getInstance();
+    sensorDataContextMap = new HashMap<>();
 
-    initACC_GYRO();
+    dataCallback = new DataNotificationCallback() {
+      @Override
+      public void onData(SensorProfile sensorProfile, byte[] data) {
+        //      Log.i(TAG, "data type: " + data[0] + ", len: " + data.length);
+        String deviceMac = sensorProfile.getDevice().getAddress();
+        SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+        if (ctx == null) return;
 
-    dataCallback = data -> {
-//      Log.i(TAG, "data type: " + data[0] + ", len: " + data.length);
-      if (data[0] == SensorProfile.NotifDataType.NTF_IMPEDANCE){
-        int offset = 1;
-        int packageIndex = ((data[offset + 1] & 0xff) << 8 | (data[offset] & 0xff));
-        offset += 2;
+        if (data[0] == SensorProfile.NotifDataType.NTF_IMPEDANCE){
+          int offset = 1;
+          int packageIndex = ((data[offset + 1] & 0xff) << 8 | (data[offset] & 0xff));
+          offset += 2;
 //        Log.d(TAG, "impedance package index: " + packageIndex);
-        Vector<Float> _impedanceData = new Vector<>();
-        Vector<Float> _saturationData = new Vector<>();
+          Vector<Float> _impedanceData = new Vector<>();
+          Vector<Float> _saturationData = new Vector<>();
 
-        int dataCount = (data.length - 3) / 4 / 2;
-        for (int index = 0;index < dataCount;++index){
-          float impedance = getFloat(data, offset);
-          offset += 4;
-          _impedanceData.add(impedance);
-        }
-        for (int index = 0;index < dataCount;++index){
-          float impedance = getFloat(data, offset);
-          offset += 4;
-          _saturationData.add(impedance / 10); //firmware value range 0-1000
-        }
-        impedanceData = _impedanceData;
-        saturationData = _saturationData;
-      }else if (data[0] == SensorProfile.NotifDataType.NTF_EEG ||
-        data[0] == SensorProfile.NotifDataType.NTF_ECG ){
-        int dataType = data[0] - SensorProfile.NotifDataType.NTF_EEG;
-        SensorData sensorData = this.sensorData[dataType];
-        if (checkReadSamples(data, sensorData, 3))
-          sendSensorData(context, sensorData);
-      }else if (data[0] == SensorProfile.NotifDataType.NTF_ACC_DATA){
-        SensorData sensorDataACC = sensorData[DATA_TYPE_ACC];
-        if (checkReadSamples(data, sensorDataACC, 3))
-          sendSensorData(context, sensorDataACC);
+          int dataCount = (data.length - 3) / 4 / 2;
+          for (int index = 0;index < dataCount;++index){
+            float impedance = getFloat(data, offset);
+            offset += 4;
+            _impedanceData.add(impedance);
+          }
+          for (int index = 0;index < dataCount;++index){
+            float impedance = getFloat(data, offset);
+            offset += 4;
+            _saturationData.add(impedance / 10); //firmware value range 0-1000
+          }
+          ctx.impedanceData = _impedanceData;
+          ctx.saturationData = _saturationData;
+        }else if (data[0] == SensorProfile.NotifDataType.NTF_EEG ||
+          data[0] == SensorProfile.NotifDataType.NTF_ECG ){
+          int dataType = data[0] - SensorProfile.NotifDataType.NTF_EEG;
+          SensorData sensorData = ctx.sensorData[dataType];
+          if (checkReadSamples(data, ctx, sensorData, 3))
+            sendSensorData(context, ctx, sensorData);
+        }else if (data[0] == SensorProfile.NotifDataType.NTF_ACC_DATA){
+          SensorData sensorDataACC = ctx.sensorData[DATA_TYPE_ACC];
+          if (checkReadSamples(data, ctx, sensorDataACC, 3))
+            sendSensorData(context, ctx, sensorDataACC);
 
-        SensorData sensorDataGYRO = sensorData[DATA_TYPE_GYRO];
-        if (checkReadSamples(data, sensorDataGYRO, 9))
-          sendSensorData(context, sensorDataGYRO);
+          SensorData sensorDataGYRO = ctx.sensorData[DATA_TYPE_GYRO];
+          if (checkReadSamples(data, ctx, sensorDataGYRO, 9))
+            sendSensorData(context, ctx, sensorDataGYRO);
+        }
       }
     };
 
-    sensorProfile = new SensorProfile(new SensorProfile.Callbacks() {
-      @Override
-      public void onErrorCallback(String errorMsg) {
-        Log.d(NAME, "got error:" + errorMsg);
-        sendEvent(context, "GOT_ERROR", errorMsg);
-      }
-
-      @Override
-      public void onStateChange(SensorProfile.BluetoothDeviceStateEx newState) {
-        Log.d(NAME, "got new device state:" + newState);
-        if (newState == SensorProfile.BluetoothDeviceStateEx.Disconnected){
-          notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
-          clearSamples();
-        }
-        sendEvent(context, "STATE_CHANGED", newState.ordinal());
-      }
-
-    });
   }
 
   @Override
@@ -383,12 +393,12 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   }
   @ReactMethod
   @DoNotStrip
-  public void startScan(double _timeoutInMS, Promise promise){
+  public void startScan(double _periodInMS, Promise promise){
     if (isScaning){
       promise.reject("startScan", "please search after search return");
       return;
     }
-    int periodInMS = (int) _timeoutInMS;
+    int periodInMS = (int) _periodInMS;
     Log.d(NAME, "timeout:" + periodInMS);
 
     if (periodInMS < 6000)
@@ -434,7 +444,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
         if (isScaning){
           scanResult.clear();
           //keep search
-          boolean ret = sensorProfile.startScan(finalTimeoutInMS, scanCallback);
+          boolean ret = sensorScaner.startScan(finalTimeoutInMS, scanCallback);
           if (!ret){
             stopScan(null);
           }
@@ -443,7 +453,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     },periodInMS + 100, periodInMS + 100);
 
     scanResult.clear();
-    boolean ret = sensorProfile.startScan(periodInMS, scanCallback);
+    boolean ret = sensorScaner.startScan(periodInMS, scanCallback);
     isScaning = ret;
     if (!ret){
       stopScan(null);
@@ -460,63 +470,142 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     }
     if (isScaning){
       isScaning = false;
-      sensorProfile.stopScan();
+      sensorScaner.stopScan();
     }
     if (promise != null){
       promise.resolve(null);
     }
   }
-  @ReactMethod
+
+  @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  @Override
-  public void connect(ReadableMap bleDevice, Promise promise) {
-    if (bleDevice != null){
-      String mac = bleDevice.getString("Address");
-      if (mac == null || mac.isEmpty()){
-        promise.reject("invalid device");
-        return;
-      }
-      SensorProfile.GF_RET_CODE code = sensorProfile.connect(mac, false);
-      if (code == SensorProfile.GF_RET_CODE.GF_SUCCESS){
-        promise.resolve(true);
-      }else{
-        promise.resolve(false);
-      }
+  public boolean isScaning(){
+    return isScaning;
+  }
+
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  @DoNotStrip
+  public boolean isEnable(){
+    return SensorScaner.getInstance().isEnable();
+  }
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  @DoNotStrip
+  public boolean initSensor(String deviceMac){
+    if (deviceMac == null || deviceMac.isEmpty()){
+      return false;
     }
-    promise.reject("invalid device");
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    if (sensor == null){
+      return false;
+    }
+    initDataContext(deviceMac);
+    sensor.setCallBack(new SensorProfile.Callbacks() {
+      @Override
+      public void onErrorCallback(SensorProfile profile, String errorMsg) {
+        Log.d(NAME, "got error:" + errorMsg);
+        WritableMap result = Arguments.createMap();
+        result.putString("deviceMac", profile.getDevice().getAddress());
+        result.putString("errMsg", errorMsg);
+        sendEvent(getReactApplicationContext(), "GOT_ERROR", result);
+      }
+      @Override
+      public void onStateChange(SensorProfile sensorProfile, SensorProfile.BluetoothDeviceStateEx newState) {
+        Log.d(NAME, "got new device state:" + newState);
+        String deviceMac = sensorProfile.getDevice().getAddress();
+        SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+        if (ctx == null) return;
+
+        if (newState == SensorProfile.BluetoothDeviceStateEx.Disconnected){
+          ctx.clear();
+        }
+        WritableMap result = Arguments.createMap();
+        result.putString("deviceMac", sensorProfile.getDevice().getAddress());
+        result.putInt("newState", newState.ordinal());
+        sendEvent(getReactApplicationContext(), "STATE_CHANGED", result);
+      }
+    });
+
+    return true;
   }
   @ReactMethod
   @DoNotStrip
   @Override
-  public void disconnect(Promise promise) {
-    promise.resolve(sensorProfile.disconnect());
+  public void connect(String deviceMac, Promise promise) {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("connect","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    SensorProfile.GF_RET_CODE code = sensor.connect(false);
+    if (code == SensorProfile.GF_RET_CODE.GF_SUCCESS){
+      promise.resolve(true);
+    }else{
+      promise.resolve(false);
+    }
+
   }
   @ReactMethod
   @DoNotStrip
   @Override
-  public void startDataNotification(Promise promise) {
-    if (sensorProfile.getState() != SensorProfile.BluetoothDeviceStateEx.Ready){
+  public void disconnect(String deviceMac, Promise promise) {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("disconnect","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    promise.resolve(sensor.disconnect());
+  }
+  @ReactMethod
+  @DoNotStrip
+  @Override
+  public void startDataNotification(String deviceMac, Promise promise) {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("startDataNotification","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    if (sensor.getState() != SensorProfile.BluetoothDeviceStateEx.Ready){
       promise.resolve(false);
       return;
     }
-    clearSamples();
-    boolean result = sensorProfile.startDataNotification(dataCallback);
+    SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+    if (ctx == null) {
+      promise.resolve(false);
+      return;
+    }
+    ctx.clear();
+    boolean result = sensor.startDataNotification(dataCallback);
 
     promise.resolve(result);
   }
   @ReactMethod
   @DoNotStrip
   @Override
-  public void stopDataNotification(Promise promise) {
-    boolean result = sensorProfile.stopDataNotification();
+  public void stopDataNotification(String deviceMac, Promise promise) {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("stopDataNotification","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    boolean result = sensor.stopDataNotification();
     promise.resolve(result);
   }
   @ReactMethod
   @DoNotStrip
   @Override
-  public void initEEG(double packageSampleCount, Promise promise) {
+  public void initEEG(String deviceMac, double packageSampleCount, Promise promise) {
     final int inPackageSampleCount = (int) packageSampleCount;
-    sensorProfile.getEegDataConfig(new CommandResponseCallback() {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("initEEG","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+    if (ctx == null) {
+      promise.reject("initEEG","invalid device");
+      return;
+    }
+    sensor.getEegDataConfig(new CommandResponseCallback() {
       @Override
       public void onGetEegDataConfig(int resp, int sampleRate, long channelMask, int packageSampleCount, int resolutionBits, double microVoltConversionK) {
         if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
@@ -529,21 +618,21 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           data.packageSampleCount = packageSampleCount;
           data.K = microVoltConversionK;
           data.clear();
-          sensorData[DATA_TYPE_EEG] = data;
+          ctx.sensorData[DATA_TYPE_EEG] = data;
 
-          sensorProfile.getEegDataCap(new CommandResponseCallback() {
+          sensor.getEegDataCap(new CommandResponseCallback() {
             @Override
             public void onGetEegDataCap(int resp, int[] supportedSampleRates, int maxChannelCount, int maxPackageSampleCount, int[] supportedResolutionBits) {
               if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
                 Log.d(TAG, "Device State: " + "get  EEG Cap succeeded");
-                sensorData[DATA_TYPE_EEG].channelCount = maxChannelCount;
-                notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_EEG);
+                ctx.sensorData[DATA_TYPE_EEG].channelCount = maxChannelCount;
+                ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_EEG);
                 promise.resolve(true);
                 if (inPackageSampleCount <= 0){
                   promise.resolve(true);
                   return;
                 }
-                sensorProfile.setEegDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
+                sensor.setEegDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
                   @Override
                   public void onSetCommandResponse(int resp) {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
@@ -571,9 +660,19 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   @ReactMethod
   @DoNotStrip
   @Override
-  public void initECG(double packageSampleCount, Promise promise) {
+  public void initECG(String deviceMac, double packageSampleCount, Promise promise) {
     final int inPackageSampleCount = (int) packageSampleCount;
-    sensorProfile.getEcgDataConfig(new CommandResponseCallback() {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("initECG","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+    if (ctx == null) {
+      promise.reject("initECG","invalid device");
+      return;
+    }
+    sensor.getEcgDataConfig(new CommandResponseCallback() {
       @Override
       public void onGetEcgDataConfig(int resp, int sampleRate, int channelMask, int packageSampleCount, int resolutionBits, double microVoltConversionK) {
         if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
@@ -586,20 +685,20 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           data.packageSampleCount = packageSampleCount;
           data.K = microVoltConversionK;
           data.clear();
-          sensorData[DATA_TYPE_ECG] = data;
+          ctx.sensorData[DATA_TYPE_ECG] = data;
 
-          sensorProfile.getEcgDataCap(new CommandResponseCallback() {
+          sensor.getEcgDataCap(new CommandResponseCallback() {
             @Override
             public void onGetEcgDataCap(int resp, int[] supportedSampleRates, int maxChannelCount, int maxPackageSampleCount, int[] supportedResolutionBits) {
               if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
                 Log.d(TAG, "Device State: " + "get  ECG Cap succeeded");
-                sensorData[DATA_TYPE_ECG].channelCount = maxChannelCount;
-                notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_ECG);
+                ctx.sensorData[DATA_TYPE_ECG].channelCount = maxChannelCount;
+                ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_ECG);
                 if (inPackageSampleCount <= 0){
                   promise.resolve(true);
                   return;
                 }
-                sensorProfile.setEcgDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
+                sensor.setEcgDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
                   @Override
                   public void onSetCommandResponse(int resp) {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
@@ -627,12 +726,22 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   @ReactMethod
   @DoNotStrip
   @Override
-  public void initDataTransfer(Promise promise) {
-    if (sensorProfile.getState() != SensorProfile.BluetoothDeviceStateEx.Ready){
+  public void initDataTransfer(String deviceMac, Promise promise) {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("initDataTransfer","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    if (sensor.getState() != SensorProfile.BluetoothDeviceStateEx.Ready){
       promise.resolve(false);
       return;
     }
-    sensorProfile.setDataNotifSwitch(notifyDataFlag, new CommandResponseCallback() {
+    SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+    if (ctx == null) {
+      promise.reject("initDataTransfer","invalid device");
+      return;
+    }
+    sensor.setDataNotifSwitch(ctx.notifyDataFlag, new CommandResponseCallback() {
       @Override
       public void onSetCommandResponse(int resp) {
         if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
@@ -648,14 +757,19 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   @ReactMethod
   @DoNotStrip
   @Override
-  public void getBatteryLevel(Promise promise) {
-    sensorProfile.getBatteryLevel(new CommandResponseCallback() {
+  public void getBatteryLevel(String deviceMac, Promise promise) {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("getBatteryLevel","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    sensor.getBatteryLevel(new CommandResponseCallback() {
       @Override
       public void onGetBatteryLevel(int resp, int batteryLevel) {
         if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
           promise.resolve(batteryLevel);
         }else{
-          promise.reject("get BatteryLevel fail:" + resp);
+          promise.reject("getBatteryLevel","get BatteryLevel fail:" + resp);
         }
       }
     }, TIMEOUT);
@@ -663,14 +777,19 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   @ReactMethod
   @DoNotStrip
   @Override
-  public void getControllerFirmwareVersion(Promise promise) {
-    sensorProfile.getControllerFirmwareVersion(new CommandResponseCallback() {
+  public void getControllerFirmwareVersion(String deviceMac, Promise promise) {
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("getControllerFirmwareVersion","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    sensor.getControllerFirmwareVersion(new CommandResponseCallback() {
       @Override
       public void onGetControllerFirmwareVersion(int resp, String firmwareVersion) {
         if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
           promise.resolve(firmwareVersion);
         }else{
-          promise.reject("get ControllerFirmwareVersion fail:" + resp);
+          promise.reject("getControllerFirmwareVersion","get ControllerFirmwareVersion fail:" + resp);
         }
       }
     }, TIMEOUT);
@@ -678,15 +797,14 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
 
   @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  public String getDeviceState(){
-    String name = sensorProfile.getState().name();
+  public String getDeviceState(String deviceMac){
+    if (deviceMac == null || deviceMac.isEmpty()){
+      return "Invalid";
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    String name = sensor.getState().name();
 //    Log.d(TAG, "status:" + name);
-    return sensorProfile.getState().name();
+    return name;
   }
 
-  @ReactMethod(isBlockingSynchronousMethod = true)
-  @DoNotStrip
-  public boolean isScaning(){
-    return isScaning;
-  }
 }

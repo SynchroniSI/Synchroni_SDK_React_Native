@@ -23,6 +23,12 @@ export type BLEDevice = {
   RSSI: number;
 };
 
+export type EventResult = {
+  deviceMac: string;
+  errMsg: string;
+  newState: DeviceStateEx;
+};
+
 export type Sample = {
   // rawData: number;
   data: number;
@@ -35,6 +41,7 @@ export type Sample = {
 };
 
 export type SensorData = {
+  deviceMac: string;
   dataType: DataType;
   // resolutionBits: number;
   sampleRate: number;
@@ -50,17 +57,19 @@ export interface Spec extends TurboModule {
   removeListeners(count: number): void;
   startScan(periodInMs: number): Promise<boolean>;
   stopScan(): Promise<void>;
-  connect(device: BLEDevice): Promise<boolean>;
-  disconnect(): Promise<boolean>;
-  startDataNotification(): Promise<boolean>;
-  stopDataNotification(): Promise<boolean>;
-  initEEG(packageSampleCount: number): Promise<boolean>;
-  initECG(packageSampleCount: number): Promise<boolean>;
-  initDataTransfer(): Promise<boolean>;
-  getBatteryLevel(): Promise<number>;
-  getControllerFirmwareVersion(): Promise<string>;
-  getDeviceState(): DeviceStateEx;
   isScaning(): boolean;
+  isEnable(): boolean;
+  initSensor(deviceMac: string): Promise<boolean>;
+  connect(deviceMac: string): Promise<boolean>;
+  disconnect(deviceMac: string): Promise<boolean>;
+  startDataNotification(deviceMac: string): Promise<boolean>;
+  stopDataNotification(deviceMac: string): Promise<boolean>;
+  initEEG(deviceMac: string, packageSampleCount: number): Promise<boolean>;
+  initECG(deviceMac: string, packageSampleCount: number): Promise<boolean>;
+  initDataTransfer(deviceMac: string): Promise<boolean>;
+  getBatteryLevel(deviceMac: string): Promise<number>;
+  getControllerFirmwareVersion(deviceMac: string): Promise<string>;
+  getDeviceState(deviceMac: string): DeviceStateEx;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Synchronisdk');
