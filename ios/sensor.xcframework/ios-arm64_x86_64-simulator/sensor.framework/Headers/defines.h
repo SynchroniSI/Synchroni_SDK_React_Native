@@ -95,6 +95,8 @@ typedef NS_ENUM(NSInteger, DataNotifyFlags) {
     DNF_ECG = 0x00020000,
     
     DNF_IMPEDANCE = 0x00040000,
+    
+    DNF_IMU = 0x00080000,
 
     /// Data Notify All On
     DNF_ALL = 0xFFFFFFFF,
@@ -120,6 +122,7 @@ typedef NS_ENUM(NSInteger, NotifyDataType)  {
     NTF_EEG,
     NTF_ECG,
     NTF_IMPEDANCE,
+    NTF_IMU,
     NTF_DATA_TYPE_MAX,
     NTF_PARTIAL_DATA = 0xFF
 };
@@ -130,12 +133,8 @@ typedef NS_ENUM(NSInteger, BLEState)
     BLEStateUnConnected,
     BLEStateConnecting,
     BLEStateConnected,
-    BLEStateRunning,
-    BLEStateIdle,
+    BLEStateReady,
     BLEStateInvalid,
-    BLEStateScaning,
-    BLEStateUnDiscovered,
-    BLEStateDiscovered,
 };
 
 #endif /* sensordefines_h */

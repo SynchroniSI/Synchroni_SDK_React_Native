@@ -15,33 +15,66 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			f3JWAH04rRM+pYnYSk5O0cOYYjU=
+			ScMKAnaRSunM5VR5LhzbqyPcMM8=
 			</data>
 			<key>hash2</key>
 			<data>
-			MB21GKprkG0F4nXowZe5+rQjrYMAdY+1+4jCF269NWw=
+			xsCr5VEKnCj9s+H04uZnWmn5h03Zk1AZV5LEzEe7/BE=
+			</data>
+		</dict>
+		<key>Headers/SensorController.h</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			WllkZlquobpEOm4kRRAqe96kugQ=
+			</data>
+			<key>hash2</key>
+			<data>
+			FXjv0NVPfs2win7Yhr/4LVvmxWV9mPTH9eHkDrA+pzc=
 			</data>
 		</dict>
 		<key>Headers/defines.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			/XQxcYqtmwhC3XkV9rtM5Ms2vRk=
+			rU8/2ZvOEUZxbv5ctjwe2xRFAH4=
 			</data>
 			<key>hash2</key>
 			<data>
-			kc5UJY+dgX7tWt677pbg/nltJL7JQkUM04t7SK73wjY=
+			0OpKYsljVNp93/GGp6f/aW3RQKwtsFg4Hq47AGzS70w=
+			</data>
+		</dict>
+		<key>Headers/sensor.h</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			j7T4eHOdhHRR6PrqguHAMBAMEc4=
+			</data>
+			<key>hash2</key>
+			<data>
+			gp5MkpzOkNhPJEePcdFi9nD1pT+5VfZhKRG5IqODGQw=
 			</data>
 		</dict>
 		<key>Headers/sensorProfile.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			SqFes6UOyr3r7dTYEh6+O6ddoVo=
+			yEUIXgobS00vM5D9zNOkAAn8/Rc=
 			</data>
 			<key>hash2</key>
 			<data>
-			/p7tKKEf1STZGM7uDLHY/5X7caYkLRvDafOd7itimvg=
+			j+BwFAenz8hiBrZ9tx26DnQx8fLloteKBq7bgtecbZI=
+			</data>
+		</dict>
+		<key>Modules/module.modulemap</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			PmkZKQtcJn9CbKZGFyH8DHGquDM=
+			</data>
+			<key>hash2</key>
+			<data>
+			BDjL+me3BBqvaiEz6ERAoe4Mg+SwwX8q/IJQ++zKZL4=
 			</data>
 		</dict>
 		<key>Resources/Info.plist</key>

@@ -14,13 +14,13 @@
 
 @property (nonatomic, strong)   CBPeripheral *cbPeripheral;
 //deviceName
-@property (nonatomic, copy)     NSString *peripheralName;
+@property (nonatomic, copy)     NSString *name;
 
 @property (nonatomic, copy)     NSString *macAddress;
 
 @property (nonatomic, strong)   NSNumber *rssi;
-//设备当前状态
-//@property (nonatomic, strong)   NSString *connectingState;
+
++(NSString*)parseMacAddress:(NSDictionary*)advData;
 
 - (instancetype)initWithPeripheral:(CBPeripheral *)peripheral;
 

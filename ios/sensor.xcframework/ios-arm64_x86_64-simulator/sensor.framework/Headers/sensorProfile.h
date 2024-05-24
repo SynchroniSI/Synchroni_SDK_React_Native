@@ -4,61 +4,78 @@
 //
 //  Created by 叶常青 on 2023/12/21.
 //
+#ifndef sensor_profile_h
+#define sensor_profile_h
 
 #import <Foundation/Foundation.h>
 #import <CoreBluetooth/CoreBluetooth.h>
-#import "BLEPeripheral.h"
-#import "defines.h"
-
-FOUNDATION_EXPORT double sensorVersionNumber;
+#import <sensor/BLEPeripheral.h>
+#import <sensor/defines.h>
 
 
-FOUNDATION_EXPORT const unsigned char sensorVersionString[];
 
-typedef void (^onlyResponseCallback)(GF_RET_CODE resp);
-typedef void (^getFeatureMapCallback)(GF_RET_CODE resp, int featureBitmap);
-typedef void (^getBatteryLevelCallback)(GF_RET_CODE resp, int batteryLevel);
-typedef void (^getControllerFirmwareVersionCallback)(GF_RET_CODE resp, NSString* firmwareVersion);
-typedef void (^getSensorDataConfigCallback)(GF_RET_CODE resp, int sampleRate, unsigned long long channelMask, int packageSampleCount, int resolutionBits, double conversionK);
-typedef void (^getSensorDataCapCallback)(GF_RET_CODE resp, NSArray* supportedSampleRates, int maxChannelCount, int maxPackageSampleCount, NSArray* supportedResolutionBits);
-
-@protocol SensorDelegate
-- (void)onSensorErrorCallback: (NSError*)err;
-- (void)onSensorStateChange: (BLEState)newState;
-- (void)onSensorScanResult:(NSArray*) bleDevices;
-- (void)onSensorNotifyData:(NSData*) rawData;
-
+@interface Sample : NSObject
+@property (atomic, assign) int timeStampInMs;
+@property (atomic, assign) int sampleIndex;
+@property (atomic, assign) int channelIndex;
+@property (atomic, assign) BOOL isLost;
+@property (atomic, assign) float rawData;
+@property (atomic, assign) float convertData;
+@property (atomic, assign) float impedance;
+@property (atomic, assign) float saturation;
 @end
 
+
+@interface SensorData : NSObject
+
+@property (atomic, assign) NotifyDataType dataType;
+@property (atomic, assign) int lastPackageIndex;
+@property (atomic, assign) int lastPackageCounter;
+@property (atomic, assign) int resolutionBits;
+@property (atomic, assign) int sampleRate;
+@property (atomic, assign) int channelCount;
+@property (atomic, assign) unsigned long long channelMask;
+@property (atomic, assign) int packageSampleCount;
+@property (atomic, assign) double K;
+@property (atomic, strong) NSArray<NSArray<Sample*>*>* channelSamples;
+-(id)init;
+-(void)clear;
+-(SensorData*)flushSamples;
+@end
+
+@protocol SensorProfileDelegate
+- (void)onSensorErrorCallback: (NSError*)err;
+- (void)onSensorStateChange: (BLEState)newState;
+- (void)onSensorNotifyData:(SensorData*) rawData;
+@end
 
 @interface SensorProfile : NSObject
 {
     
 }
-@property (atomic, weak) id<SensorDelegate> delegate;
+@property (atomic, weak) id<SensorProfileDelegate> delegate;
 @property (atomic, assign, readonly) BLEState state;
--(id)init;
--(BOOL)startScan:(NSTimeInterval)timeout;
--(void)stopScan;
--(BOOL)connect:(BLEPeripheral*)peripheral;
+@property (atomic, readonly) NSString* stateString;
+@property (atomic, strong, readonly) BLEPeripheral* device;
+@property (atomic, assign, readonly) bool hasEEG;
+@property (atomic, assign, readonly) bool hasECG;
+@property (atomic, assign, readonly) bool hasInit;
+@property (atomic, assign, readonly) bool hasStartDataNotification;
+
+
+-(BOOL)connect;
 -(void)disconnect;
 -(BOOL)startDataNotification;
 -(BOOL)stopDataNotification;
 
--(GF_RET_CODE)getFeatureMap:(getFeatureMapCallback)cb timeout:(NSTimeInterval)timeout;
--(GF_RET_CODE)getBatteryLevel:(getBatteryLevelCallback)cb timeout:(NSTimeInterval)timeout;
--(GF_RET_CODE)getControllerFirmwareVersion:(getControllerFirmwareVersionCallback)cb timeout:(NSTimeInterval)timeout;
+- (void)initAll:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)initEEG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)initECG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)initDataTransfer:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)getVersion:(NSTimeInterval)timeout completion:(void (^)(NSString* version))completionHandler;
+- (void)getBattery:(NSTimeInterval)timeout completion:(void (^)(int battery))completionHandler;
 
-
--(GF_RET_CODE)setDataNotifSwitch:(DataNotifyFlags)flags cb:(onlyResponseCallback)cb timeout:(NSTimeInterval)timeout;
-
--(GF_RET_CODE)getEegDataConfig:(getSensorDataConfigCallback)cb timeout:(NSTimeInterval)timeout;
--(GF_RET_CODE)getEcgDataConfig:(getSensorDataConfigCallback)cb timeout:(NSTimeInterval)timeout;
-
--(GF_RET_CODE)getEegDataCap:(getSensorDataCapCallback)cb timeout:(NSTimeInterval)timeout;
--(GF_RET_CODE)getEcgDataCap:(getSensorDataCapCallback)cb timeout:(NSTimeInterval)timeout;
-
--(GF_RET_CODE)setEegDataConfig:(int)sampleRate channelMask:(unsigned long long)channelMask sampleCount:(int) sampleCount resolutionBits:(int)resolutionBits cb:(onlyResponseCallback)cb timeout:(NSTimeInterval)timeout;
--(GF_RET_CODE)setEcgDataConfig:(int)sampleRate channelMask:(int)channelMask sampleCount:(int) sampleCount resolutionBits:(int)resolutionBits cb:(onlyResponseCallback)cb timeout:(NSTimeInterval)timeout;
 
 @end
+
+#endif
