@@ -470,7 +470,7 @@ RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
 - (void)onSensorErrorCallback:(NSError *)err {
     NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:self.profile.device.macAddress, @"deviceMac", [err description], @"errMsg", nil];
     
-    SynchronySDKReactNative* instance = self.delegate;
+    Synchronisdk* instance = self.delegate;
 
     [instance sendEvent:@"GOT_ERROR" params:result];
 }
@@ -478,7 +478,7 @@ RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
 - (void)onSensorNotifyData:(SensorData *)sensorData {
     NSDictionary* sampleResult = [sensorData reactSamples: self.profile];
     if (sampleResult != nil){
-        SynchronySDKReactNative* instance = self.delegate;
+        Synchronisdk* instance = self.delegate;
         [instance sendEvent:@"GOT_DATA" params:sampleResult];
     }
 }
@@ -486,7 +486,7 @@ RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
 - (void)onSensorStateChange:(BLEState)newState {
     NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:self.profile.device.macAddress, @"deviceMac", @(newState), @"newState", nil];
     
-    SynchronySDKReactNative* instance = self.delegate;
+    Synchronisdk* instance = self.delegate;
     [instance sendEvent:@"STATE_CHANGED" params:result];
 }
 
