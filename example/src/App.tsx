@@ -333,15 +333,15 @@ export default function App() {
       !sensor.isIniting
     ) {
       setMessage('initing');
-      const firmwareVersion = await sensor.firmwareVersion();
+      const deviceInfo = await sensor.deviceInfo();
       const batteryPower = await sensor.batteryPower();
       const inited = await sensor.init(
         PackageSampleCount,
         PowerRefreshInterval
       );
       console.log(
-        'Version: ' +
-          firmwareVersion +
+        'Device: ' +
+          JSON.stringify(deviceInfo) +
           ' \n power: ' +
           batteryPower +
           ' \n inited: ' +
@@ -349,8 +349,8 @@ export default function App() {
       );
 
       setMessage(
-        '\nVersion: ' +
-          firmwareVersion +
+        'Device: ' +
+          JSON.stringify(deviceInfo) +
           ' \n power: ' +
           batteryPower +
           ' \n inited: ' +

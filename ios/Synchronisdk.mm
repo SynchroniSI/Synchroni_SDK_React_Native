@@ -229,20 +229,21 @@ RCT_EXPORT_MODULE()
     resolve(@(FALSE));
 }
 
--(void)_getControllerFirmwareVersion:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+-(void)_getDeviceInfo:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
     if (dataCtx){
         if (dataCtx.profile.state != BLEStateReady){
-            reject(@"getControllerFirmwareVersion", @"device not connected", nil);
+            reject(@"getDeviceInfo", @"device not connected", nil);
             return;
         }
-        [dataCtx.profile getVersion:TIMEOUT completion:^(NSString* version) {
-            resolve(version);
+        [dataCtx.profile getDeviceInfo:TIMEOUT completion:^(DeviceInfo* version) {
+            NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:version.deviceName, @"DeviceName", version.modelName, @"ModelName", version.hardwareVersion, @"HardwareVersion", version.firmwareVersion, @"FirmwareVersion", nil];
+            resolve(result);
         }];
         return;
     }
-    resolve(@(FALSE));
+    resolve(nil);
 }
 
 -(BLEState)_getDeviceState:(NSString*_Nonnull)deviceMac {
@@ -344,10 +345,10 @@ packageSampleCount:(double)packageSampleCount
     [self _getBatteryLevel:deviceMac resolve:resolve reject:reject];
 }
 
-- (void)getControllerFirmwareVersion:(NSString *)deviceMac
+- (void)getDeviceInfo:(NSString *)deviceMac
                              resolve:(RCTPromiseResolveBlock)resolve
                               reject:(RCTPromiseRejectBlock)reject{
-    [self _getControllerFirmwareVersion:deviceMac resolve:resolve reject:reject];
+    [self _getDeviceInfo:deviceMac resolve:resolve reject:reject];
 }
 
 - (NSString *)getDeviceState:(NSString*)deviceMac {
@@ -434,9 +435,9 @@ RCT_EXPORT_METHOD(getBatteryLevel:(NSString*_Nonnull)deviceMac resolve:(RCTPromi
     [self _getBatteryLevel:deviceMac resolve:resolve reject:reject];
 }
 
-RCT_EXPORT_METHOD(getControllerFirmwareVersion:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(getDeviceInfo:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
     
-    [self _getControllerFirmwareVersion:deviceMac resolve:resolve reject:reject];
+    [self _getDeviceInfo:deviceMac resolve:resolve reject:reject];
 }
 
 RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,

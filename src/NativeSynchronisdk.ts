@@ -23,6 +23,13 @@ export type BLEDevice = {
   RSSI: number;
 };
 
+export type DeviceInfo = {
+  DeviceName: string;
+  ModelName: string;
+  HardwareVersion: string;
+  FirmwareVersion: string;
+};
+
 export type EventResult = {
   deviceMac: string;
   errMsg: string;
@@ -68,7 +75,7 @@ export interface Spec extends TurboModule {
   initECG(deviceMac: string, packageSampleCount: number): Promise<boolean>;
   initDataTransfer(deviceMac: string): Promise<boolean>;
   getBatteryLevel(deviceMac: string): Promise<number>;
-  getControllerFirmwareVersion(deviceMac: string): Promise<string>;
+  getDeviceInfo(deviceMac: string): Promise<DeviceInfo>;
   getDeviceState(deviceMac: string): DeviceStateEx;
 }
 

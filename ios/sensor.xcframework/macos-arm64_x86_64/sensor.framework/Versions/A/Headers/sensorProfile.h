@@ -12,7 +12,12 @@
 #import <sensor/BLEPeripheral.h>
 #import <sensor/defines.h>
 
-
+@interface DeviceInfo : NSObject
+@property (atomic, strong) NSString* deviceName;
+@property (atomic, strong) NSString* modelName;
+@property (atomic, strong) NSString* hardwareVersion;
+@property (atomic, strong) NSString* firmwareVersion;
+@end
 
 @interface Sample : NSObject
 @property (atomic, assign) int timeStampInMs;
@@ -24,7 +29,6 @@
 @property (atomic, assign) float impedance;
 @property (atomic, assign) float saturation;
 @end
-
 
 @interface SensorData : NSObject
 
@@ -72,9 +76,8 @@
 - (void)initEEG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initECG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initDataTransfer:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
-- (void)getVersion:(NSTimeInterval)timeout completion:(void (^)(NSString* version))completionHandler;
 - (void)getBattery:(NSTimeInterval)timeout completion:(void (^)(int battery))completionHandler;
-
+- (void)getDeviceInfo:(NSTimeInterval)timeout completion:(void (^)(DeviceInfo* deviceInfo))completionHandler;
 
 @end
 

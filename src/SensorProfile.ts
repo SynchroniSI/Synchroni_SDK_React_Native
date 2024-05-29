@@ -3,6 +3,7 @@ import { Synchronisdk } from './ModuleResolver';
 import {
   DeviceStateEx,
   type BLEDevice,
+  type DeviceInfo,
   type SensorData,
 } from './NativeSynchronisdk';
 
@@ -12,11 +13,11 @@ export default class SensorProfile {
   private _hasInited: boolean;
   private _isIniting: boolean;
   private _isFetchingPower: boolean;
-  private _isFetchingFirmware: boolean;
+  private _isFetchingDeviceInfo: boolean;
   private _isDataTransfering: boolean;
   private _isSwitchDataTransfering: boolean;
   private _powerCache: number;
-  private _versionCache: string;
+  private _deviceInfo: DeviceInfo | undefined;
   private _device: BLEDevice;
   private _powerTimer: NodeJS.Timeout | undefined;
   private _onError:
@@ -40,11 +41,11 @@ export default class SensorProfile {
       this._isDataTransfering =
       this._isIniting =
       this._isFetchingPower =
-      this._isFetchingFirmware =
+      this._isFetchingDeviceInfo =
       this._isSwitchDataTransfering =
         false;
     this._powerCache = -1;
-    this._versionCache = '';
+    this._deviceInfo = undefined;
     if (!Synchronisdk.initSensor(device.Address)) {
       console.error(
         'Invalid sensor profile: ' + device.Address + ' => ' + device.Name
@@ -59,11 +60,11 @@ export default class SensorProfile {
       this._isDataTransfering =
       this._isIniting =
       this._isFetchingPower =
-      this._isFetchingFirmware =
+      this._isFetchingDeviceInfo =
       this._isSwitchDataTransfering =
         false;
     this._powerCache = -1;
-    this._versionCache = '';
+    this._deviceInfo = undefined;
 
     if (this._powerTimer) {
       clearInterval(this._powerTimer);
@@ -249,22 +250,22 @@ export default class SensorProfile {
     }
   };
 
-  firmwareVersion = async (): Promise<string> => {
+  deviceInfo = async (): Promise<DeviceInfo | undefined> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
-      return '';
+      return undefined;
     }
-    if (this._isFetchingFirmware) {
-      return this._versionCache;
+    if (this._isFetchingDeviceInfo) {
+      return this._deviceInfo;
     }
-    this._isFetchingFirmware = true;
+    this._isFetchingDeviceInfo = true;
     try {
-      this._versionCache = await this._getControllerFirmwareVersion();
-      this._isFetchingFirmware = false;
-      return this._versionCache;
+      this._deviceInfo = await this._getDeviceInfo();
+      this._isFetchingDeviceInfo = false;
+      return this._deviceInfo;
     } catch (error) {
-      this._isFetchingFirmware = false;
+      this._isFetchingDeviceInfo = false;
       this.emitError(error);
-      return '';
+      return undefined;
     }
   };
 
@@ -351,7 +352,7 @@ export default class SensorProfile {
     return Synchronisdk.getBatteryLevel(this._device.Address);
   }
 
-  private async _getControllerFirmwareVersion(): Promise<string> {
-    return Synchronisdk.getControllerFirmwareVersion(this._device.Address);
+  private async _getDeviceInfo(): Promise<DeviceInfo> {
+    return Synchronisdk.getDeviceInfo(this._device.Address);
   }
 }

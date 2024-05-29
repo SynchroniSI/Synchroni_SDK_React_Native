@@ -67,7 +67,7 @@ abstract class SynchronisdkSpec extends ReactContextBaseJavaModule {
   public abstract void getBatteryLevel(String deviceMac, Promise promise);
   @ReactMethod
   @DoNotStrip
-  public abstract void getControllerFirmwareVersion(String deviceMac, Promise promise);
+  public abstract void getDeviceInfo(String deviceMac, Promise promise);
   ////////////////////////////////////////////////////////////////////////////////////////////
   @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
