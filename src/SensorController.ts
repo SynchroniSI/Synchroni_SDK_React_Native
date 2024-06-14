@@ -1,4 +1,4 @@
-import { PermissionsAndroid, Platform } from 'react-native';
+import { Alert, PermissionsAndroid, Platform } from 'react-native';
 import type { EmitterSubscription } from 'react-native';
 import { NativeEventEmitter } from 'react-native';
 import SensorProfile from './SensorProfile';
@@ -74,8 +74,14 @@ export default class SensorController {
   startScan = async (periodInMs: number): Promise<boolean> => {
     return new Promise<boolean>(async (resolve, reject) => {
       if (Platform.OS !== 'ios') {
-        const result = await this.requestPermissionAndroid();
-        if (!result) {
+        try {
+          const result = await this.requestPermissionAndroid();
+          if (!result) {
+            console.log('request permisson fail');
+            reject('request permisson fail');
+            return;
+          }
+        } catch (error) {
           console.log('request permisson fail');
           reject('request permisson fail');
           return;
@@ -147,36 +153,69 @@ export default class SensorController {
   ////////////////////////////////////////////
 
   private async requestPermissionAndroid(): Promise<boolean> {
-    try {
-      const p1 = PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION!;
-      const p2 = PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT!;
-      const p3 = PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN!;
+    const granted = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION!
+    );
 
-      var result = await PermissionsAndroid.requestMultiple([p1]);
-      console.log(result);
-      if (result[p1] !== PermissionsAndroid.RESULTS.GRANTED) {
-        return false;
+    if (!granted) {
+      const AsyncAlert = async () =>
+        new Promise((resolve) => {
+          Alert.alert(
+            'note',
+            'We need access to location to use bluetooth, including in the background to keep your device connected',
+            [
+              {
+                text: 'ok',
+                onPress: () => {
+                  resolve('YES');
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+        });
+
+      await AsyncAlert();
+      const granted1 = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION!
+      );
+
+      if (granted1 !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert(
+          'We need access to location to connect to your bluetooth device'
+        );
+
+        throw 'Location perm denied';
       }
-
-      if (Number(Platform.Version) >= 31) {
-        result = await PermissionsAndroid.requestMultiple([p2]);
-        console.log(result);
-        if (result[p2] !== PermissionsAndroid.RESULTS.GRANTED) {
-          return false;
-        }
-
-        result = await PermissionsAndroid.requestMultiple([p3]);
-        console.log(result);
-        if (result[p3] !== PermissionsAndroid.RESULTS.GRANTED) {
-          return false;
-        }
-      }
-
-      return true;
-    } catch (err) {
-      console.warn(err);
-      return false;
     }
+
+    if (Number(Platform.Version) >= 31) {
+      const granted2 = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN!
+      );
+
+      if (granted2 !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert(
+          'We need access to bluetooth scan to connect to your bluetooth device'
+        );
+
+        throw 'Scan perm denied';
+      }
+
+      const granted3 = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT!
+      );
+
+      if (granted3 !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert(
+          "We need access to 'bluetooth connect' to connect to your bluetooth device"
+        );
+
+        throw 'Connect perm denied';
+      }
+    }
+
+    return true;
   }
 
   private _startScan(periodInMs: number): Promise<boolean> {

@@ -8,8 +8,18 @@ import {
 } from './NativeSynchronisdk';
 
 export default class SensorProfile {
+  private _batteryPowerQueue: Array<any>;
+  private _deviceInfoQueue: Array<any>;
+  private _initQueue: Array<any>;
+  private _startDataNotificationQueue: Array<any>;
+  private _stopDataNotificationQueue: Array<any>;
+  private _connectQueue: Array<any>;
+  private _disconnectQueue: Array<any>;
+
   private _supportEEG: boolean;
   private _supportECG: boolean;
+  private _isConnecting: boolean;
+  private _isDisconnecting: boolean;
   private _hasInited: boolean;
   private _isIniting: boolean;
   private _isFetchingPower: boolean;
@@ -20,6 +30,9 @@ export default class SensorProfile {
   private _deviceInfo: DeviceInfo | undefined;
   private _device: BLEDevice;
   private _powerTimer: NodeJS.Timeout | undefined;
+  private _connectionTimer: NodeJS.Timeout | undefined;
+  private _connectTick: number;
+  private _disConnectTick: number;
   private _onError:
     | ((sensor: SensorProfile, reason: string) => void)
     | undefined;
@@ -34,23 +47,39 @@ export default class SensorProfile {
     | undefined;
 
   constructor(device: BLEDevice) {
+    this._batteryPowerQueue = [];
+    this._deviceInfoQueue = [];
+    this._initQueue = [];
+    this._startDataNotificationQueue = [];
+    this._stopDataNotificationQueue = [];
+    this._connectQueue = [];
+    this._disconnectQueue = [];
     this._device = device;
     this._supportEEG =
       this._supportECG =
       this._hasInited =
       this._isDataTransfering =
       this._isIniting =
+      this._isConnecting =
+      this._isDisconnecting =
       this._isFetchingPower =
       this._isFetchingDeviceInfo =
       this._isSwitchDataTransfering =
         false;
-    this._powerCache = -1;
+    this._powerCache = this._connectTick = this._disConnectTick = -1;
+
     this._deviceInfo = undefined;
+
     if (!Synchronisdk.initSensor(device.Address)) {
       console.error(
         'Invalid sensor profile: ' + device.Address + ' => ' + device.Name
       );
     }
+    try {
+      if (!this._connectionTimer) {
+        this._connectionTimer = setInterval(this._refreshConnection, 1000);
+      }
+    } catch (error) {}
   }
 
   private _reset(): void {
@@ -81,7 +110,9 @@ export default class SensorProfile {
 
   public emitStateChanged(newstate: DeviceStateEx) {
     if (newstate === DeviceStateEx.Disconnected) {
-      this._reset();
+      this._onDisconnect(true);
+    } else if (newstate === DeviceStateEx.Ready) {
+      this._onConnect(true);
     }
     if (this._onStateChange) {
       this._onStateChange(this, newstate);
@@ -118,7 +149,7 @@ export default class SensorProfile {
     this._onPowerChange = callback;
   }
 
-  refreshPower = async () => {
+  _refreshPower = async () => {
     let power = await this.batteryPower();
     if (this._onPowerChange) {
       this._onPowerChange(this, power);
@@ -143,18 +174,6 @@ export default class SensorProfile {
     return value;
   }
 
-  public get isIniting(): boolean {
-    return this._isIniting;
-  }
-
-  public get supportEEG(): boolean {
-    return this._supportEEG;
-  }
-
-  public get supportECG(): boolean {
-    return this._supportECG;
-  }
-
   public get hasInited(): boolean {
     return this._hasInited;
   }
@@ -168,105 +187,250 @@ export default class SensorProfile {
   }
 
   connect = async (): Promise<boolean> => {
-    if (
-      !(
-        this.deviceState === DeviceStateEx.Disconnected ||
-        this.deviceState === DeviceStateEx.Connected
-      )
-    ) {
-      return false;
+    if (this.deviceState === DeviceStateEx.Ready) {
+      return true;
     }
-    return this._connect();
+
+    return new Promise<boolean>((resolve) => {
+      this._connectQueue.push(resolve);
+      if (this._isConnecting) {
+        return;
+      }
+      this._isConnecting = true;
+
+      this._connect()
+        .then((value: boolean) => {
+          if (value) {
+            this._connectTick = new Date().getTime();
+          } else {
+            this._onConnect(false);
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+          this._onConnect(false);
+        });
+    });
   };
 
   disconnect = async (): Promise<boolean> => {
-    if (
-      !(
-        this.deviceState === DeviceStateEx.Ready ||
-        this.deviceState === DeviceStateEx.Connected
-      )
-    ) {
-      return false;
+    if (this.deviceState === DeviceStateEx.Disconnected) {
+      return true;
     }
-    this.stopDataNotification();
-    this._reset();
-    return this._disconnect();
+
+    return new Promise<boolean>((resolve) => {
+      this._disconnectQueue.push(resolve);
+      if (this._isDisconnecting) {
+        return;
+      }
+      this._isDisconnecting = true;
+
+      this._disconnect()
+        .then((value: boolean) => {
+          if (value) {
+            this._disConnectTick = new Date().getTime();
+          } else {
+            this._onDisconnect(false);
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+          this._onDisconnect(false);
+        });
+    });
+  };
+
+  _onConnect = (result: boolean): void => {
+    this._isConnecting = false;
+    this._connectTick = -1;
+
+    const pendings = this._connectQueue;
+    this._connectQueue = [];
+    pendings.forEach((promise) => {
+      promise(result);
+    });
+
+    if (result) {
+      this.stopDataNotification();
+    } else {
+      this.disconnect();
+    }
+  };
+
+  _onDisconnect = (result: boolean): void => {
+    this._isDisconnecting = false;
+    this._disConnectTick = -1;
+
+    const pendings = this._disconnectQueue;
+    this._disconnectQueue = [];
+    pendings.forEach((promise) => {
+      promise(result);
+    });
+
+    if (result) {
+      this._reset();
+    } else {
+      this.disconnect();
+    }
+  };
+
+  _refreshConnection = (): void => {
+    const TIMEOUT = 5000;
+
+    if (this._connectTick > -1) {
+      const delta = new Date().getTime() - this._connectTick;
+      if (delta >= TIMEOUT) {
+        if (this.deviceState === DeviceStateEx.Ready) {
+          this._onConnect(true);
+        } else {
+          this._onConnect(false);
+        }
+      }
+    }
+
+    if (this._disConnectTick > -1) {
+      const delta = new Date().getTime() - this._disConnectTick;
+      if (delta >= TIMEOUT) {
+        if (this.deviceState === DeviceStateEx.Disconnected) {
+          this._onDisconnect(true);
+        } else {
+          this._onDisconnect(false);
+        }
+      }
+    }
   };
 
   startDataNotification = async (): Promise<boolean> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
       return false;
     }
-    if (this._isSwitchDataTransfering) {
-      return false;
-    }
-    this._isSwitchDataTransfering = true;
-    try {
-      this._isDataTransfering = await this._startDataNotification();
-      this._isSwitchDataTransfering = false;
-      return this._isDataTransfering;
-    } catch (error) {
-      this._isSwitchDataTransfering = false;
-      this.emitError(error);
-      return false;
-    }
+
+    return new Promise<boolean>((resolve) => {
+      this._startDataNotificationQueue.push(resolve);
+      if (this._isSwitchDataTransfering) {
+        return;
+      }
+      this._isSwitchDataTransfering = true;
+
+      this._startDataNotification()
+        .then((value: boolean) => {
+          this._isDataTransfering = value;
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isSwitchDataTransfering = false;
+          const pendings = this._startDataNotificationQueue;
+          this._startDataNotificationQueue = [];
+          pendings.forEach((promise) => {
+            promise(this._isDataTransfering);
+          });
+        });
+    });
   };
 
   stopDataNotification = async (): Promise<boolean> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
       return false;
     }
-    if (this._isSwitchDataTransfering) {
-      return false;
-    }
-    this._isSwitchDataTransfering = true;
-    try {
-      this._isDataTransfering = !(await this._stopDataNotification());
-      this._isSwitchDataTransfering = false;
-      return this._isDataTransfering;
-    } catch (error) {
-      this._isSwitchDataTransfering = false;
-      this.emitError(error);
-      return false;
-    }
+    return new Promise<boolean>((resolve) => {
+      this._stopDataNotificationQueue.push(resolve);
+      if (this._isSwitchDataTransfering) {
+        return;
+      }
+      this._isSwitchDataTransfering = true;
+
+      this._stopDataNotification()
+        .then((value: boolean) => {
+          if (value) {
+            this._isDataTransfering = false;
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isSwitchDataTransfering = false;
+          const pendings = this._stopDataNotificationQueue;
+          this._stopDataNotificationQueue = [];
+          pendings.forEach((promise) => {
+            promise(this._isDataTransfering);
+          });
+        });
+    });
   };
 
   batteryPower = async (): Promise<number> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
       return -1;
     }
-    if (this._isFetchingPower) {
-      return this._powerCache;
-    }
-    this._isFetchingPower = true;
-    try {
-      this._powerCache = await this._getBatteryLevel();
-      this._isFetchingPower = false;
-      return this._powerCache;
-    } catch (error) {
-      this._isFetchingPower = false;
-      this.emitError(error);
-      return -1;
-    }
+
+    return new Promise<number>((resolve) => {
+      this._batteryPowerQueue.push(resolve);
+      if (this._isFetchingPower) {
+        return;
+      }
+      this._isFetchingPower = true;
+
+      this._getBatteryLevel()
+        .then((value: number) => {
+          this._powerCache = value;
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isFetchingPower = false;
+          const pendings = this._batteryPowerQueue;
+          this._batteryPowerQueue = [];
+
+          pendings.forEach((promise) => {
+            promise(this._powerCache);
+          });
+        });
+    });
   };
 
   deviceInfo = async (): Promise<DeviceInfo | undefined> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
       return undefined;
     }
-    if (this._isFetchingDeviceInfo) {
+
+    if (this._deviceInfo) {
+      this._deviceInfo.SupportEEG = this._supportEEG;
+      this._deviceInfo.SupportECG = this._supportECG;
       return this._deviceInfo;
     }
-    this._isFetchingDeviceInfo = true;
-    try {
-      this._deviceInfo = await this._getDeviceInfo();
-      this._isFetchingDeviceInfo = false;
-      return this._deviceInfo;
-    } catch (error) {
-      this._isFetchingDeviceInfo = false;
-      this.emitError(error);
-      return undefined;
-    }
+
+    return new Promise<DeviceInfo | undefined>((resolve) => {
+      this._deviceInfoQueue.push(resolve);
+      if (this._isFetchingDeviceInfo) {
+        return;
+      }
+      this._isFetchingDeviceInfo = true;
+
+      this._getDeviceInfo()
+        .then((value: DeviceInfo | undefined) => {
+          this._deviceInfo = value;
+          if (this._deviceInfo) {
+            this._deviceInfo.SupportEEG = this._supportEEG;
+            this._deviceInfo.SupportECG = this._supportECG;
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isFetchingDeviceInfo = false;
+          const pendings = this._deviceInfoQueue;
+          this._deviceInfoQueue = [];
+
+          pendings.forEach((promise) => {
+            promise(this._deviceInfo);
+          });
+        });
+    });
   };
 
   init = async (
@@ -279,44 +443,64 @@ export default class SensorProfile {
     if (this._hasInited) {
       return this._hasInited;
     }
-    this._isIniting = true;
-    try {
-      await this.stopDataNotification();
-    } catch (error) {}
 
-    try {
-      if (!this._powerTimer) {
-        this._powerTimer = setInterval(this.refreshPower, powerRefreshInterval);
+    return new Promise<boolean>((resolve) => {
+      this._initQueue.push(resolve);
+      if (this._isIniting) {
+        return;
       }
-    } catch (error) {}
+      this._isIniting = true;
 
-    try {
-      this._supportEEG = await this._initEEG(packageSampleCount);
-    } catch (error) {
-      this._supportEEG = false;
-    }
+      try {
+        if (!this._powerTimer) {
+          this._powerTimer = setInterval(
+            this._refreshPower,
+            powerRefreshInterval
+          );
+        }
+      } catch (error) {}
 
-    try {
-      this._supportECG = await this._initECG(packageSampleCount);
-    } catch (error) {
-      this._supportECG = false;
-    }
+      const promises = [
+        this.stopDataNotification(),
+        this._initEEG(packageSampleCount),
+        this._initECG(packageSampleCount),
+      ];
 
-    try {
-      if (this._supportEEG || this._supportECG) {
-        this._hasInited = await this._initDataTransfer();
-      } else {
-        this._hasInited = false;
-      }
-      // console.log(this._supportEEG + "|" + this._supportECG + "|" + this._hasInited);
-      this._isIniting = false;
-      return this._hasInited;
-    } catch (error) {
-      this._isIniting = false;
-      this._hasInited = false;
-      this.emitError(error);
-      return false;
-    }
+      Promise.allSettled(promises).then((results) => {
+        if (results[1]!.status === 'fulfilled') {
+          this._supportEEG = results[1]!.value;
+        } else {
+          this._supportEEG = false;
+        }
+
+        if (results[2]!.status === 'fulfilled') {
+          this._supportECG = results[2]!.value;
+        } else {
+          this._supportECG = false;
+        }
+
+        console.log('init data');
+
+        this._initDataTransfer()
+          .then((value: boolean) => {
+            this._hasInited = value;
+          })
+          .catch((error) => {
+            this._hasInited = false;
+            this.emitError(error);
+          })
+          .finally(() => {
+            this._isIniting = false;
+
+            const pendings = this._initQueue;
+            this._initQueue = [];
+
+            pendings.forEach((promise) => {
+              promise(this._hasInited);
+            });
+          });
+      });
+    });
   };
   ////////////////////////////////////////////////////////
 

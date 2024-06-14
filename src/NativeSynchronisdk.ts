@@ -28,6 +28,8 @@ export type DeviceInfo = {
   ModelName: string;
   HardwareVersion: string;
   FirmwareVersion: string;
+  SupportEEG: boolean;
+  SupportECG: boolean;
 };
 
 export type EventResult = {

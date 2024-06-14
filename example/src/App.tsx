@@ -1,5 +1,5 @@
-import * as React from 'react';
 // import VConsole from '@kafudev/react-native-vconsole';
+import React from 'react';
 import { StyleSheet, View, Text, Button } from 'react-native';
 import {
   SensorController,
@@ -298,7 +298,7 @@ export default function App() {
     refreshDeviceInfo();
   }
 
-  function onConnectDisonnectButton() {
+  async function onConnectDisonnectButton() {
     //connect/disconnect logic
     const bledevice = getSelectedDevice();
     if (!bledevice) return;
@@ -306,11 +306,17 @@ export default function App() {
     if (!sensor) return;
 
     if (sensor.deviceState === DeviceStateEx.Ready) {
-      setMessage('disconnect');
-      sensor.disconnect();
+      if (await sensor.disconnect()) {
+        setMessage('disconnect: ' + bledevice.Name + ' success');
+      } else {
+        setMessage('disconnect: ' + bledevice.Name + ' fail');
+      }
     } else {
-      setMessage('connect: ' + bledevice.Name);
-      sensor.connect();
+      if (await sensor.connect()) {
+        setMessage('connect: ' + bledevice.Name + ' success');
+      } else {
+        setMessage('connect: ' + bledevice.Name + ' fail');
+      }
     }
   }
 
@@ -326,43 +332,33 @@ export default function App() {
       setMessage('please connect before init');
       return;
     }
+    setMessage('initing');
 
-    if (
-      sensor.deviceState === DeviceStateEx.Ready &&
-      !sensor.hasInited &&
-      !sensor.isIniting
-    ) {
-      setMessage('initing');
-      const deviceInfo = await sensor.deviceInfo();
-      const batteryPower = await sensor.batteryPower();
-      const inited = await sensor.init(
-        PackageSampleCount,
-        PowerRefreshInterval
-      );
-      console.log(
-        'Device: ' +
-          JSON.stringify(deviceInfo) +
-          ' \n power: ' +
-          batteryPower +
-          ' \n inited: ' +
-          inited
-      );
-
-      setMessage(
-        'Device: ' +
-          JSON.stringify(deviceInfo) +
-          ' \n power: ' +
-          batteryPower +
-          ' \n inited: ' +
-          inited
-      );
-      setEEGInfo('');
-      setEEGSample('');
-      setECGInfo('');
-      setECGSample('');
-      setAccInfo('');
-      setGyroInfo('');
-    }
+    const inited = await sensor.init(PackageSampleCount, PowerRefreshInterval);
+    const deviceInfo = await sensor.deviceInfo();
+    const batteryPower = await sensor.batteryPower();
+    console.log(
+      'Device: ' +
+        JSON.stringify(deviceInfo) +
+        ' \n power: ' +
+        batteryPower +
+        ' \n inited: ' +
+        inited
+    );
+    setMessage(
+      'Device: ' +
+        JSON.stringify(deviceInfo) +
+        ' \n power: ' +
+        batteryPower +
+        ' \n inited: ' +
+        inited
+    );
+    setEEGInfo('');
+    setEEGSample('');
+    setECGInfo('');
+    setECGSample('');
+    setAccInfo('');
+    setGyroInfo('');
   }
 
   function onDataSwitchButton() {

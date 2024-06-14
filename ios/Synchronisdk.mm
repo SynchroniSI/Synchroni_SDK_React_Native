@@ -61,7 +61,9 @@ RCT_EXPORT_MODULE()
 
 -(void)sendEvent:(NSString*)name params:(id)params{
     if(hasListeners){
-        [self sendEventWithName:name body:params];
+        dispatch_async(self.senderQueue, ^{
+            [self sendEventWithName:name body:params];
+        });
     }
 }
 
