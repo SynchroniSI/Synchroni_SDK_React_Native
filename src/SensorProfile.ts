@@ -57,13 +57,13 @@ export default class SensorProfile {
     this._device = device;
 
     this._hasInited =
-    this._isDataTransfering =
-    this._isIniting =
-    this._isConnecting =
-    this._isDisconnecting =
-    this._isFetchingPower =
-    this._isFetchingDeviceInfo =
-    this._isSwitchDataTransfering =
+      this._isDataTransfering =
+      this._isIniting =
+      this._isConnecting =
+      this._isDisconnecting =
+      this._isFetchingPower =
+      this._isFetchingDeviceInfo =
+      this._isSwitchDataTransfering =
         false;
     this._powerCache = this._connectTick = this._disConnectTick = -1;
 
@@ -84,13 +84,12 @@ export default class SensorProfile {
   }
 
   private _reset(): void {
-
     this._hasInited =
-    this._isDataTransfering =
-    this._isIniting =
-    this._isFetchingPower =
-    this._isFetchingDeviceInfo =
-    this._isSwitchDataTransfering =
+      this._isDataTransfering =
+      this._isIniting =
+      this._isFetchingPower =
+      this._isFetchingDeviceInfo =
+      this._isSwitchDataTransfering =
         false;
     this._powerCache = -1;
     this._EEGChannelCount = 0;
@@ -453,7 +452,6 @@ export default class SensorProfile {
       }
       this._isIniting = true;
 
-
       this._doInit(packageSampleCount, powerRefreshInterval)
         .then((value: boolean) => {
           this._hasInited = value;
@@ -472,15 +470,13 @@ export default class SensorProfile {
             promise(this._hasInited);
           });
         });
-      });
-
+    });
   };
 
   private _doInit = async (
     packageSampleCount: number,
     powerRefreshInterval: number
   ): Promise<boolean> => {
-
     try {
       await this.stopDataNotification();
     } catch (error) {}
@@ -519,7 +515,7 @@ export default class SensorProfile {
       this.emitError(error);
       return false;
     }
-  }
+  };
   ////////////////////////////////////////////////////////
 
   private async _connect(): Promise<boolean> {

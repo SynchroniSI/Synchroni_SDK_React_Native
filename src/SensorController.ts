@@ -72,7 +72,7 @@ export default class SensorController {
   /////////////////////////////////////////////////////////
 
   startScan = async (periodInMs: number): Promise<boolean> => {
-    return new Promise<boolean>(async (resolve, reject) => {
+    return new Promise<boolean>(async (resolve) => {
       if (Platform.OS !== 'ios') {
         try {
           const result = await this.requestPermissionAndroid();
