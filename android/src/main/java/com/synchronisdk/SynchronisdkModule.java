@@ -627,9 +627,8 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                 Log.d(TAG, "Device State: " + "get  EEG Cap succeeded");
                 ctx.sensorData[DATA_TYPE_EEG].channelCount = maxChannelCount;
                 ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_EEG);
-                promise.resolve(true);
                 if (inPackageSampleCount <= 0){
-                  promise.resolve(true);
+                  promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
                   return;
                 }
                 sensor.setEegDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
@@ -637,22 +636,22 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                   public void onSetCommandResponse(int resp) {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
                       data.packageSampleCount = inPackageSampleCount;
-                      promise.resolve(true);
+                      promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
                     }else{
                       Log.d(TAG, "Device State: " + "set  EEG Config failed, resp code: " + resp);
-                      promise.resolve(false);
+                      promise.resolve(0);
                     }
                   }
                 }, TIMEOUT);
               }else{
                 Log.d(TAG, "Device State: " + "get  EEG Cap failed, resp code: " + resp);
-                promise.resolve(false);
+                promise.resolve(0);
               }
             }
           }, TIMEOUT);
         } else {
           Log.d(TAG, "Device State: " + "get  EEG Config failed, resp code: " + resp);
-          promise.resolve(false);
+          promise.resolve(0);
         }
       }
     }, TIMEOUT);
@@ -695,7 +694,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                 ctx.sensorData[DATA_TYPE_ECG].channelCount = maxChannelCount;
                 ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_ECG);
                 if (inPackageSampleCount <= 0){
-                  promise.resolve(true);
+                  promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
                   return;
                 }
                 sensor.setEcgDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
@@ -703,22 +702,22 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                   public void onSetCommandResponse(int resp) {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
                       data.packageSampleCount = inPackageSampleCount;
-                      promise.resolve(true);
+                      promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
                     }else{
                       Log.d(TAG, "Device State: " + "set  ECG Config failed, resp code: " + resp);
-                      promise.resolve(false);
+                      promise.resolve(0);
                     }
                   }
                 }, TIMEOUT);
               }else{
                 Log.d(TAG, "Device State: " + "get  ECG Cap failed, resp code: " + resp);
-                promise.resolve(false);
+                promise.resolve(0);
               }
             }
           }, TIMEOUT);
         } else {
           Log.d(TAG, "Device State: " + "get ECG Config failed, resp code: " + resp);
-          promise.resolve(false);
+          promise.resolve(0);
         }
       }
     }, TIMEOUT);
@@ -804,7 +803,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       @Override
       public void onGetHardwareVersion(int resp, String hardwareType, String hardwareVersion) {
         if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
-          result.putString("HardwareVersion", hardwareVersion);
+          result.putString("HardwareVersion", hardwareType);
         }
       }
     }, TIMEOUT);

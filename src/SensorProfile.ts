@@ -16,8 +16,8 @@ export default class SensorProfile {
   private _connectQueue: Array<any>;
   private _disconnectQueue: Array<any>;
 
-  private _supportEEG: boolean;
-  private _supportECG: boolean;
+  private _EEGChannelCount: number;
+  private _ECGChannelCount: number;
   private _isConnecting: boolean;
   private _isDisconnecting: boolean;
   private _hasInited: boolean;
@@ -55,19 +55,20 @@ export default class SensorProfile {
     this._connectQueue = [];
     this._disconnectQueue = [];
     this._device = device;
-    this._supportEEG =
-      this._supportECG =
-      this._hasInited =
-      this._isDataTransfering =
-      this._isIniting =
-      this._isConnecting =
-      this._isDisconnecting =
-      this._isFetchingPower =
-      this._isFetchingDeviceInfo =
-      this._isSwitchDataTransfering =
+
+    this._hasInited =
+    this._isDataTransfering =
+    this._isIniting =
+    this._isConnecting =
+    this._isDisconnecting =
+    this._isFetchingPower =
+    this._isFetchingDeviceInfo =
+    this._isSwitchDataTransfering =
         false;
     this._powerCache = this._connectTick = this._disConnectTick = -1;
 
+    this._EEGChannelCount = 0;
+    this._ECGChannelCount = 0;
     this._deviceInfo = undefined;
 
     if (!Synchronisdk.initSensor(device.Address)) {
@@ -83,16 +84,17 @@ export default class SensorProfile {
   }
 
   private _reset(): void {
-    this._supportEEG =
-      this._supportECG =
-      this._hasInited =
-      this._isDataTransfering =
-      this._isIniting =
-      this._isFetchingPower =
-      this._isFetchingDeviceInfo =
-      this._isSwitchDataTransfering =
+
+    this._hasInited =
+    this._isDataTransfering =
+    this._isIniting =
+    this._isFetchingPower =
+    this._isFetchingDeviceInfo =
+    this._isSwitchDataTransfering =
         false;
     this._powerCache = -1;
+    this._EEGChannelCount = 0;
+    this._ECGChannelCount = 0;
     this._deviceInfo = undefined;
 
     if (this._powerTimer) {
@@ -398,8 +400,8 @@ export default class SensorProfile {
     }
 
     if (this._deviceInfo) {
-      this._deviceInfo.SupportEEG = this._supportEEG;
-      this._deviceInfo.SupportECG = this._supportECG;
+      this._deviceInfo.EEGChannelCount = this._EEGChannelCount;
+      this._deviceInfo.ECGChannelCount = this._ECGChannelCount;
       return this._deviceInfo;
     }
 
@@ -414,8 +416,8 @@ export default class SensorProfile {
         .then((value: DeviceInfo | undefined) => {
           this._deviceInfo = value;
           if (this._deviceInfo) {
-            this._deviceInfo.SupportEEG = this._supportEEG;
-            this._deviceInfo.SupportECG = this._supportECG;
+            this._deviceInfo.EEGChannelCount = this._EEGChannelCount;
+            this._deviceInfo.ECGChannelCount = this._ECGChannelCount;
           }
         })
         .catch((error) => {
@@ -451,57 +453,73 @@ export default class SensorProfile {
       }
       this._isIniting = true;
 
-      try {
-        if (!this._powerTimer) {
-          this._powerTimer = setInterval(
-            this._refreshPower,
-            powerRefreshInterval
-          );
-        }
-      } catch (error) {}
 
-      const promises = [
-        this.stopDataNotification(),
-        this._initEEG(packageSampleCount),
-        this._initECG(packageSampleCount),
-      ];
+      this._doInit(packageSampleCount, powerRefreshInterval)
+        .then((value: boolean) => {
+          this._hasInited = value;
+        })
+        .catch((error) => {
+          this._hasInited = false;
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isIniting = false;
 
-      Promise.allSettled(promises).then((results) => {
-        if (results[1]!.status === 'fulfilled') {
-          this._supportEEG = results[1]!.value;
-        } else {
-          this._supportEEG = false;
-        }
+          const pendings = this._initQueue;
+          this._initQueue = [];
 
-        if (results[2]!.status === 'fulfilled') {
-          this._supportECG = results[2]!.value;
-        } else {
-          this._supportECG = false;
-        }
-
-        console.log('init data');
-
-        this._initDataTransfer()
-          .then((value: boolean) => {
-            this._hasInited = value;
-          })
-          .catch((error) => {
-            this._hasInited = false;
-            this.emitError(error);
-          })
-          .finally(() => {
-            this._isIniting = false;
-
-            const pendings = this._initQueue;
-            this._initQueue = [];
-
-            pendings.forEach((promise) => {
-              promise(this._hasInited);
-            });
+          pendings.forEach((promise) => {
+            promise(this._hasInited);
           });
+        });
       });
-    });
+
   };
+
+  private _doInit = async (
+    packageSampleCount: number,
+    powerRefreshInterval: number
+  ): Promise<boolean> => {
+
+    try {
+      await this.stopDataNotification();
+    } catch (error) {}
+
+    try {
+      if (!this._powerTimer) {
+        this._powerTimer = setInterval(
+          this._refreshPower,
+          powerRefreshInterval
+        );
+      }
+    } catch (error) {}
+
+    try {
+      this._EEGChannelCount = await this._initEEG(packageSampleCount);
+    } catch (error) {
+      this._EEGChannelCount = 0;
+    }
+
+    try {
+      this._ECGChannelCount = await this._initECG(packageSampleCount);
+    } catch (error) {
+      this._ECGChannelCount = 0;
+    }
+
+    try {
+      if (this._EEGChannelCount > 0 || this._ECGChannelCount > 0) {
+        this._hasInited = await this._initDataTransfer();
+      } else {
+        this._hasInited = false;
+      }
+      // console.log(this._supportEEG + "|" + this._supportECG + "|" + this._hasInited);
+      return this._hasInited;
+    } catch (error) {
+      this._hasInited = false;
+      this.emitError(error);
+      return false;
+    }
+  }
   ////////////////////////////////////////////////////////
 
   private async _connect(): Promise<boolean> {
@@ -520,11 +538,11 @@ export default class SensorProfile {
     return Synchronisdk.stopDataNotification(this._device.Address);
   }
 
-  private async _initEEG(packageSampleCount: number): Promise<boolean> {
+  private async _initEEG(packageSampleCount: number): Promise<number> {
     return Synchronisdk.initEEG(this._device.Address, packageSampleCount);
   }
 
-  private async _initECG(packageSampleCount: number): Promise<boolean> {
+  private async _initECG(packageSampleCount: number): Promise<number> {
     return Synchronisdk.initECG(this._device.Address, packageSampleCount);
   }
 

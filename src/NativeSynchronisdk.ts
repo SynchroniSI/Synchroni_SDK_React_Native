@@ -28,8 +28,8 @@ export type DeviceInfo = {
   ModelName: string;
   HardwareVersion: string;
   FirmwareVersion: string;
-  SupportEEG: boolean;
-  SupportECG: boolean;
+  EEGChannelCount: number;
+  ECGChannelCount: number;
 };
 
 export type EventResult = {
@@ -73,8 +73,8 @@ export interface Spec extends TurboModule {
   disconnect(deviceMac: string): Promise<boolean>;
   startDataNotification(deviceMac: string): Promise<boolean>;
   stopDataNotification(deviceMac: string): Promise<boolean>;
-  initEEG(deviceMac: string, packageSampleCount: number): Promise<boolean>;
-  initECG(deviceMac: string, packageSampleCount: number): Promise<boolean>;
+  initEEG(deviceMac: string, packageSampleCount: number): Promise<number>;
+  initECG(deviceMac: string, packageSampleCount: number): Promise<number>;
   initDataTransfer(deviceMac: string): Promise<boolean>;
   getBatteryLevel(deviceMac: string): Promise<number>;
   getDeviceInfo(deviceMac: string): Promise<DeviceInfo>;

@@ -78,19 +78,14 @@ export default class SensorController {
           const result = await this.requestPermissionAndroid();
           if (!result) {
             console.log('request permisson fail');
-            reject('request permisson fail');
+            resolve(false);
             return;
           }
         } catch (error) {
           console.log('request permisson fail');
-          reject('request permisson fail');
+          resolve(false);
           return;
         }
-      }
-
-      if (this.isScaning) {
-        reject('please search after search return');
-        return;
       }
 
       this._startScan(periodInMs)
@@ -98,15 +93,13 @@ export default class SensorController {
           resolve(result);
         })
         .catch((reason: Error) => {
-          reject(reason.message);
+          console.log(reason.message);
+          resolve(false);
         });
     });
   };
 
   stopScan = async (): Promise<void> => {
-    if (!this.isScaning) {
-      return;
-    }
     return this._stopScan();
   };
 
