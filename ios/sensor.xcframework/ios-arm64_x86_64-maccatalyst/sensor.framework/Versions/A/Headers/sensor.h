@@ -12,7 +12,6 @@
 
 FOUNDATION_EXPORT double sensorVersionNumber = 1;
 
-
 FOUNDATION_EXPORT const unsigned char sensorVersionString[] = "1.0";
 
 #import <sensor/sensorProfile.h>

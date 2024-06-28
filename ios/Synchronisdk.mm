@@ -172,15 +172,15 @@ RCT_EXPORT_MODULE()
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
     if (dataCtx){
         if (dataCtx.profile.state != BLEStateReady){
-            resolve(@(FALSE));
+            resolve(@(0));
             return;
         }
         [dataCtx.profile initECG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
-            resolve(@(success));
+            resolve(@(dataCtx.profile.ECGChannelCount));
         }];
         return;
     }
-    resolve(@(FALSE));
+    resolve(@(0));
 }
 
 - (void)_initEEG:(NSString*_Nonnull)deviceMac packageSampleCount:(int)inPackageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
@@ -188,15 +188,15 @@ RCT_EXPORT_MODULE()
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
     if (dataCtx){
         if (dataCtx.profile.state != BLEStateReady){
-            resolve(@(FALSE));
+            resolve(@(0));
             return;
         }
         [dataCtx.profile initEEG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
-            resolve(@(success));
+            resolve(@(dataCtx.profile.EEGChannelCount));
         }];
         return;
     }
-    resolve(@(FALSE));
+    resolve(@(0));
 }
 
 -(void)_initDataTransfer:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {

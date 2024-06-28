@@ -64,6 +64,8 @@
 @property (atomic, assign, readonly) bool hasEEG;
 @property (atomic, assign, readonly) bool hasECG;
 @property (atomic, assign, readonly) bool hasInit;
+@property (atomic, assign, readonly) int EEGChannelCount;
+@property (atomic, assign, readonly) int ECGChannelCount;
 @property (atomic, assign, readonly) bool hasStartDataNotification;
 
 
