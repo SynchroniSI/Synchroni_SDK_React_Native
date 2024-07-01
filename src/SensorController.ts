@@ -11,35 +11,16 @@ import {
 } from './NativeSynchronisdk';
 
 export default class SensorController {
-  private static _instance: SensorController;
-  private sensorProfiles: Array<SensorProfile>;
-  private sensorProfileMap: Map<string, SensorProfile>;
-
-  protected nativeEventEmitter: NativeEventEmitter;
-  private onDevice: EmitterSubscription | undefined;
-
   public static get Instance() {
     return this._instance || (this._instance = new this());
   }
 
-  private constructor() {
-    this.sensorProfileMap = new Map<string, SensorProfile>();
-    this.sensorProfiles = new Array<SensorProfile>(0);
-    this.nativeEventEmitter = new NativeEventEmitter(Synchronisdk);
-    this.nativeEventEmitter.addListener(
-      'STATE_CHANGED',
-      (state: EventResult) => {
-        this.dispatchEvent('STATE_CHANGED', state);
-      }
-    );
+  public get isScaning(): boolean {
+    return Synchronisdk.isScaning();
+  }
 
-    this.nativeEventEmitter.addListener('GOT_DATA', (data: SensorData) => {
-      this.dispatchData('GOT_DATA', data);
-    });
-
-    this.nativeEventEmitter.addListener('GOT_ERROR', (error: EventResult) => {
-      this.dispatchEvent('GOT_ERROR', error);
-    });
+  public get isEnable(): boolean {
+    return Synchronisdk.isEnable();
   }
 
   public set onDeviceCallback(
@@ -52,26 +33,7 @@ export default class SensorController {
     }
   }
 
-  private AddOnDeviceCallback(
-    callback: (deviceList: Array<BLEDevice>) => void
-  ) {
-    this.RemoveOnDeviceCallback();
-    this.onDevice = this.nativeEventEmitter.addListener(
-      'GOT_DEVICE_LIST',
-      (deviceList: Array<BLEDevice>) => {
-        callback(deviceList);
-      }
-    );
-  }
-
-  private RemoveOnDeviceCallback() {
-    if (this.onDevice !== undefined) this.onDevice.remove();
-    this.onDevice = undefined;
-  }
-
-  /////////////////////////////////////////////////////////
-
-  startScan = async (periodInMs: number): Promise<boolean> => {
+  public startScan = async (periodInMs: number): Promise<boolean> => {
     return new Promise<boolean>(async (resolve) => {
       if (Platform.OS !== 'ios') {
         try {
@@ -99,19 +61,11 @@ export default class SensorController {
     });
   };
 
-  stopScan = async (): Promise<void> => {
+  public stopScan = async (): Promise<void> => {
     return this._stopScan();
   };
 
-  public get isScaning(): boolean {
-    return Synchronisdk.isScaning();
-  }
-
-  public get isEnable(): boolean {
-    return Synchronisdk.isEnable();
-  }
-
-  requireSensor = (device: BLEDevice): SensorProfile => {
+  public requireSensor = (device: BLEDevice): SensorProfile => {
     const deviceMac = device.Address;
     if (this.sensorProfileMap.has(deviceMac)) {
       return this.sensorProfileMap.get(deviceMac)!;
@@ -122,18 +76,18 @@ export default class SensorController {
     return sensorProfile;
   };
 
-  getSensor = (deviceMac: string): SensorProfile | undefined => {
+  public getSensor = (deviceMac: string): SensorProfile | undefined => {
     return this.sensorProfileMap.get(deviceMac);
   };
 
-  getConnectedSensors = (): SensorProfile[] => {
+  public getConnectedSensors = (): SensorProfile[] => {
     let filterDevices = this.sensorProfiles.filter((item) => {
       return item.deviceState === DeviceStateEx.Ready;
     });
     return filterDevices;
   };
 
-  getConnectedDevices = (): BLEDevice[] => {
+  public getConnectedDevices = (): BLEDevice[] => {
     let devices = new Array<BLEDevice>(0);
     this.sensorProfiles.filter((item) => {
       if (item.deviceState === DeviceStateEx.Ready) {
@@ -143,7 +97,51 @@ export default class SensorController {
     });
     return devices;
   };
+
   ////////////////////////////////////////////
+  private static _instance: SensorController;
+  private sensorProfiles: Array<SensorProfile>;
+  private sensorProfileMap: Map<string, SensorProfile>;
+
+  protected nativeEventEmitter: NativeEventEmitter;
+  private onDevice: EmitterSubscription | undefined;
+
+  private constructor() {
+    this.sensorProfileMap = new Map<string, SensorProfile>();
+    this.sensorProfiles = new Array<SensorProfile>(0);
+    this.nativeEventEmitter = new NativeEventEmitter(Synchronisdk);
+    this.nativeEventEmitter.addListener(
+      'STATE_CHANGED',
+      (state: EventResult) => {
+        this.dispatchEvent('STATE_CHANGED', state);
+      }
+    );
+
+    this.nativeEventEmitter.addListener('GOT_DATA', (data: SensorData) => {
+      this.dispatchData('GOT_DATA', data);
+    });
+
+    this.nativeEventEmitter.addListener('GOT_ERROR', (error: EventResult) => {
+      this.dispatchEvent('GOT_ERROR', error);
+    });
+  }
+
+  private AddOnDeviceCallback(
+    callback: (deviceList: Array<BLEDevice>) => void
+  ) {
+    this.RemoveOnDeviceCallback();
+    this.onDevice = this.nativeEventEmitter.addListener(
+      'GOT_DEVICE_LIST',
+      (deviceList: Array<BLEDevice>) => {
+        callback(deviceList);
+      }
+    );
+  }
+
+  private RemoveOnDeviceCallback() {
+    if (this.onDevice !== undefined) this.onDevice.remove();
+    this.onDevice = undefined;
+  }
 
   private async requestPermissionAndroid(): Promise<boolean> {
     const granted = await PermissionsAndroid.check(

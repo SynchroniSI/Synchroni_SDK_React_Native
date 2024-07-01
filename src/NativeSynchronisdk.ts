@@ -28,8 +28,8 @@ export type DeviceInfo = {
   ModelName: string;
   HardwareVersion: string;
   FirmwareVersion: string;
-  EEGChannelCount: number;
-  ECGChannelCount: number;
+  EegChannelCount: number;
+  EcgChannelCount: number;
 };
 
 export type EventResult = {

@@ -8,6 +8,290 @@ import {
 } from './NativeSynchronisdk';
 
 export default class SensorProfile {
+  //-----Callbacks-----//
+  public set onStateChanged(
+    callback: (sensor: SensorProfile, newstate: DeviceStateEx) => void
+  ) {
+    this._onStateChange = callback;
+  }
+
+  public set onErrorCallback(
+    callback: (sensor: SensorProfile, reason: string) => void
+  ) {
+    this._onError = callback;
+  }
+
+  public set onDataCallback(
+    callback: (sensor: SensorProfile, signalData: SensorData) => void
+  ) {
+    this._onData = callback;
+  }
+
+  public set onPowerChanged(
+    callback: (sensor: SensorProfile, power: number) => void
+  ) {
+    this._onPowerChange = callback;
+  }
+
+  ////////////////////////////////////////////
+  public get deviceState(): DeviceStateEx {
+    let value = Synchronisdk.getDeviceState(this._device.Address);
+    if (value === 'Disconnected') {
+      return DeviceStateEx.Disconnected;
+    } else if (value === 'Disconnecting') {
+      return DeviceStateEx.Disconnecting;
+    } else if (value === 'Connected') {
+      return DeviceStateEx.Connected;
+    } else if (value === 'Connecting') {
+      return DeviceStateEx.Connecting;
+    } else if (value === 'Ready') {
+      return DeviceStateEx.Ready;
+    } else if (value === 'Invalid') {
+      return DeviceStateEx.Invalid;
+    }
+    return value;
+  }
+
+  public get hasInited(): boolean {
+    return this._hasInited;
+  }
+
+  public get isDataTransfering(): boolean {
+    return this._isDataTransfering;
+  }
+
+  public get BLEDevice(): BLEDevice {
+    return this._device;
+  }
+
+  ////////////////////////////////////////////
+  public connect = async (): Promise<boolean> => {
+    if (this.deviceState === DeviceStateEx.Ready) {
+      return true;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      this._connectQueue.push(resolve);
+      if (this._isConnecting) {
+        return;
+      }
+      this._isConnecting = true;
+
+      this._connect()
+        .then((value: boolean) => {
+          if (value) {
+            this._connectTick = new Date().getTime();
+          } else {
+            this._onConnect(false);
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+          this._onConnect(false);
+        });
+    });
+  };
+
+  public disconnect = async (): Promise<boolean> => {
+    if (this.deviceState === DeviceStateEx.Disconnected) {
+      return true;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      this._disconnectQueue.push(resolve);
+      if (this._isDisconnecting) {
+        return;
+      }
+      this._isDisconnecting = true;
+
+      this._disconnect()
+        .then((value: boolean) => {
+          if (value) {
+            this._disConnectTick = new Date().getTime();
+          } else {
+            this._onDisconnect(false);
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+          this._onDisconnect(false);
+        });
+    });
+  };
+
+  public startDataNotification = async (): Promise<boolean> => {
+    if (this.deviceState !== DeviceStateEx.Ready) {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      this._startDataNotificationQueue.push(resolve);
+      if (this._isSwitchDataTransfering) {
+        return;
+      }
+      this._isSwitchDataTransfering = true;
+
+      this._startDataNotification()
+        .then((value: boolean) => {
+          this._isDataTransfering = value;
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isSwitchDataTransfering = false;
+          const pendings = this._startDataNotificationQueue;
+          this._startDataNotificationQueue = [];
+          pendings.forEach((promise) => {
+            promise(this._isDataTransfering);
+          });
+        });
+    });
+  };
+
+  public stopDataNotification = async (): Promise<boolean> => {
+    if (this.deviceState !== DeviceStateEx.Ready) {
+      return false;
+    }
+    return new Promise<boolean>((resolve) => {
+      this._stopDataNotificationQueue.push(resolve);
+      if (this._isSwitchDataTransfering) {
+        return;
+      }
+      this._isSwitchDataTransfering = true;
+
+      this._stopDataNotification()
+        .then((value: boolean) => {
+          if (value) {
+            this._isDataTransfering = false;
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isSwitchDataTransfering = false;
+          const pendings = this._stopDataNotificationQueue;
+          this._stopDataNotificationQueue = [];
+          pendings.forEach((promise) => {
+            promise(this._isDataTransfering);
+          });
+        });
+    });
+  };
+
+  public batteryPower = async (): Promise<number> => {
+    if (this.deviceState !== DeviceStateEx.Ready) {
+      return -1;
+    }
+
+    return new Promise<number>((resolve) => {
+      this._batteryPowerQueue.push(resolve);
+      if (this._isFetchingPower) {
+        return;
+      }
+      this._isFetchingPower = true;
+
+      this._getBatteryLevel()
+        .then((value: number) => {
+          this._powerCache = value;
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isFetchingPower = false;
+          const pendings = this._batteryPowerQueue;
+          this._batteryPowerQueue = [];
+
+          pendings.forEach((promise) => {
+            promise(this._powerCache);
+          });
+        });
+    });
+  };
+
+  public deviceInfo = async (): Promise<DeviceInfo | undefined> => {
+    if (this.deviceState !== DeviceStateEx.Ready) {
+      return undefined;
+    }
+
+    if (this._deviceInfo) {
+      this._deviceInfo.EegChannelCount = this._EEGChannelCount;
+      this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
+      return this._deviceInfo;
+    }
+
+    return new Promise<DeviceInfo | undefined>((resolve) => {
+      this._deviceInfoQueue.push(resolve);
+      if (this._isFetchingDeviceInfo) {
+        return;
+      }
+      this._isFetchingDeviceInfo = true;
+
+      this._getDeviceInfo()
+        .then((value: DeviceInfo | undefined) => {
+          this._deviceInfo = value;
+          if (this._deviceInfo) {
+            this._deviceInfo.EegChannelCount = this._EEGChannelCount;
+            this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
+          }
+        })
+        .catch((error) => {
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isFetchingDeviceInfo = false;
+          const pendings = this._deviceInfoQueue;
+          this._deviceInfoQueue = [];
+
+          pendings.forEach((promise) => {
+            promise(this._deviceInfo);
+          });
+        });
+    });
+  };
+
+  public init = async (
+    packageSampleCount: number,
+    powerRefreshInterval: number
+  ): Promise<boolean> => {
+    if (this.deviceState !== DeviceStateEx.Ready) {
+      return false;
+    }
+    if (this._hasInited) {
+      return this._hasInited;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      this._initQueue.push(resolve);
+      if (this._isIniting) {
+        return;
+      }
+      this._isIniting = true;
+
+      this._doInit(packageSampleCount, powerRefreshInterval)
+        .then((value: boolean) => {
+          this._hasInited = value;
+        })
+        .catch((error) => {
+          this._hasInited = false;
+          this.emitError(error);
+        })
+        .finally(() => {
+          this._isIniting = false;
+
+          const pendings = this._initQueue;
+          this._initQueue = [];
+
+          pendings.forEach((promise) => {
+            promise(this._hasInited);
+          });
+        });
+    });
+  };
+
+  ////////////////////////////////////////////////
   private _batteryPowerQueue: Array<any>;
   private _deviceInfoQueue: Array<any>;
   private _initQueue: Array<any>;
@@ -101,15 +385,8 @@ export default class SensorProfile {
       this._powerTimer = undefined;
     }
   }
-  //-----Callbacks-----//
 
-  public set onStateChanged(
-    callback: (sensor: SensorProfile, newstate: DeviceStateEx) => void
-  ) {
-    this._onStateChange = callback;
-  }
-
-  public emitStateChanged(newstate: DeviceStateEx) {
+  emitStateChanged(newstate: DeviceStateEx) {
     if (newstate === DeviceStateEx.Disconnected) {
       this._onDisconnect(true);
     } else if (newstate === DeviceStateEx.Ready) {
@@ -120,128 +397,26 @@ export default class SensorProfile {
     }
   }
 
-  public set onErrorCallback(
-    callback: (sensor: SensorProfile, reason: string) => void
-  ) {
-    this._onError = callback;
-  }
-
-  public emitError(error: any) {
+  emitError(error: any) {
     if (this._onError) {
       this._onError(this, error);
     }
   }
 
-  public set onDataCallback(
-    callback: (sensor: SensorProfile, signalData: SensorData) => void
-  ) {
-    this._onData = callback;
-  }
-
-  public emitOnData(signalData: SensorData) {
+  emitOnData(signalData: SensorData) {
     if (this._onData) {
       this._onData(this, signalData);
     }
   }
 
-  public set onPowerChanged(
-    callback: (sensor: SensorProfile, power: number) => void
-  ) {
-    this._onPowerChange = callback;
-  }
-
-  _refreshPower = async () => {
+  private _refreshPower = async () => {
     let power = await this.batteryPower();
     if (this._onPowerChange) {
       this._onPowerChange(this, power);
     }
   };
 
-  public get deviceState(): DeviceStateEx {
-    let value = Synchronisdk.getDeviceState(this._device.Address);
-    if (value === 'Disconnected') {
-      return DeviceStateEx.Disconnected;
-    } else if (value === 'Disconnecting') {
-      return DeviceStateEx.Disconnecting;
-    } else if (value === 'Connected') {
-      return DeviceStateEx.Connected;
-    } else if (value === 'Connecting') {
-      return DeviceStateEx.Connecting;
-    } else if (value === 'Ready') {
-      return DeviceStateEx.Ready;
-    } else if (value === 'Invalid') {
-      return DeviceStateEx.Invalid;
-    }
-    return value;
-  }
-
-  public get hasInited(): boolean {
-    return this._hasInited;
-  }
-
-  public get isDataTransfering(): boolean {
-    return this._isDataTransfering;
-  }
-
-  public get BLEDevice(): BLEDevice {
-    return this._device;
-  }
-
-  connect = async (): Promise<boolean> => {
-    if (this.deviceState === DeviceStateEx.Ready) {
-      return true;
-    }
-
-    return new Promise<boolean>((resolve) => {
-      this._connectQueue.push(resolve);
-      if (this._isConnecting) {
-        return;
-      }
-      this._isConnecting = true;
-
-      this._connect()
-        .then((value: boolean) => {
-          if (value) {
-            this._connectTick = new Date().getTime();
-          } else {
-            this._onConnect(false);
-          }
-        })
-        .catch((error) => {
-          this.emitError(error);
-          this._onConnect(false);
-        });
-    });
-  };
-
-  disconnect = async (): Promise<boolean> => {
-    if (this.deviceState === DeviceStateEx.Disconnected) {
-      return true;
-    }
-
-    return new Promise<boolean>((resolve) => {
-      this._disconnectQueue.push(resolve);
-      if (this._isDisconnecting) {
-        return;
-      }
-      this._isDisconnecting = true;
-
-      this._disconnect()
-        .then((value: boolean) => {
-          if (value) {
-            this._disConnectTick = new Date().getTime();
-          } else {
-            this._onDisconnect(false);
-          }
-        })
-        .catch((error) => {
-          this.emitError(error);
-          this._onDisconnect(false);
-        });
-    });
-  };
-
-  _onConnect = (result: boolean): void => {
+  private _onConnect = (result: boolean): void => {
     this._isConnecting = false;
     this._connectTick = -1;
 
@@ -258,7 +433,7 @@ export default class SensorProfile {
     }
   };
 
-  _onDisconnect = (result: boolean): void => {
+  private _onDisconnect = (result: boolean): void => {
     this._isDisconnecting = false;
     this._disConnectTick = -1;
 
@@ -275,7 +450,7 @@ export default class SensorProfile {
     }
   };
 
-  _refreshConnection = (): void => {
+  private _refreshConnection = (): void => {
     const TIMEOUT = 5000;
 
     if (this._connectTick > -1) {
@@ -299,178 +474,6 @@ export default class SensorProfile {
         }
       }
     }
-  };
-
-  startDataNotification = async (): Promise<boolean> => {
-    if (this.deviceState !== DeviceStateEx.Ready) {
-      return false;
-    }
-
-    return new Promise<boolean>((resolve) => {
-      this._startDataNotificationQueue.push(resolve);
-      if (this._isSwitchDataTransfering) {
-        return;
-      }
-      this._isSwitchDataTransfering = true;
-
-      this._startDataNotification()
-        .then((value: boolean) => {
-          this._isDataTransfering = value;
-        })
-        .catch((error) => {
-          this.emitError(error);
-        })
-        .finally(() => {
-          this._isSwitchDataTransfering = false;
-          const pendings = this._startDataNotificationQueue;
-          this._startDataNotificationQueue = [];
-          pendings.forEach((promise) => {
-            promise(this._isDataTransfering);
-          });
-        });
-    });
-  };
-
-  stopDataNotification = async (): Promise<boolean> => {
-    if (this.deviceState !== DeviceStateEx.Ready) {
-      return false;
-    }
-    return new Promise<boolean>((resolve) => {
-      this._stopDataNotificationQueue.push(resolve);
-      if (this._isSwitchDataTransfering) {
-        return;
-      }
-      this._isSwitchDataTransfering = true;
-
-      this._stopDataNotification()
-        .then((value: boolean) => {
-          if (value) {
-            this._isDataTransfering = false;
-          }
-        })
-        .catch((error) => {
-          this.emitError(error);
-        })
-        .finally(() => {
-          this._isSwitchDataTransfering = false;
-          const pendings = this._stopDataNotificationQueue;
-          this._stopDataNotificationQueue = [];
-          pendings.forEach((promise) => {
-            promise(this._isDataTransfering);
-          });
-        });
-    });
-  };
-
-  batteryPower = async (): Promise<number> => {
-    if (this.deviceState !== DeviceStateEx.Ready) {
-      return -1;
-    }
-
-    return new Promise<number>((resolve) => {
-      this._batteryPowerQueue.push(resolve);
-      if (this._isFetchingPower) {
-        return;
-      }
-      this._isFetchingPower = true;
-
-      this._getBatteryLevel()
-        .then((value: number) => {
-          this._powerCache = value;
-        })
-        .catch((error) => {
-          this.emitError(error);
-        })
-        .finally(() => {
-          this._isFetchingPower = false;
-          const pendings = this._batteryPowerQueue;
-          this._batteryPowerQueue = [];
-
-          pendings.forEach((promise) => {
-            promise(this._powerCache);
-          });
-        });
-    });
-  };
-
-  deviceInfo = async (): Promise<DeviceInfo | undefined> => {
-    if (this.deviceState !== DeviceStateEx.Ready) {
-      return undefined;
-    }
-
-    if (this._deviceInfo) {
-      this._deviceInfo.EEGChannelCount = this._EEGChannelCount;
-      this._deviceInfo.ECGChannelCount = this._ECGChannelCount;
-      return this._deviceInfo;
-    }
-
-    return new Promise<DeviceInfo | undefined>((resolve) => {
-      this._deviceInfoQueue.push(resolve);
-      if (this._isFetchingDeviceInfo) {
-        return;
-      }
-      this._isFetchingDeviceInfo = true;
-
-      this._getDeviceInfo()
-        .then((value: DeviceInfo | undefined) => {
-          this._deviceInfo = value;
-          if (this._deviceInfo) {
-            this._deviceInfo.EEGChannelCount = this._EEGChannelCount;
-            this._deviceInfo.ECGChannelCount = this._ECGChannelCount;
-          }
-        })
-        .catch((error) => {
-          this.emitError(error);
-        })
-        .finally(() => {
-          this._isFetchingDeviceInfo = false;
-          const pendings = this._deviceInfoQueue;
-          this._deviceInfoQueue = [];
-
-          pendings.forEach((promise) => {
-            promise(this._deviceInfo);
-          });
-        });
-    });
-  };
-
-  init = async (
-    packageSampleCount: number,
-    powerRefreshInterval: number
-  ): Promise<boolean> => {
-    if (this.deviceState !== DeviceStateEx.Ready) {
-      return false;
-    }
-    if (this._hasInited) {
-      return this._hasInited;
-    }
-
-    return new Promise<boolean>((resolve) => {
-      this._initQueue.push(resolve);
-      if (this._isIniting) {
-        return;
-      }
-      this._isIniting = true;
-
-      this._doInit(packageSampleCount, powerRefreshInterval)
-        .then((value: boolean) => {
-          this._hasInited = value;
-        })
-        .catch((error) => {
-          this._hasInited = false;
-          this.emitError(error);
-        })
-        .finally(() => {
-          this._isIniting = false;
-
-          const pendings = this._initQueue;
-          this._initQueue = [];
-
-          pendings.forEach((promise) => {
-            promise(this._hasInited);
-          });
-        });
-    });
   };
 
   private _doInit = async (

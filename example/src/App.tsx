@@ -3,11 +3,11 @@ import React from 'react';
 import { StyleSheet, View, Text, Button } from 'react-native';
 import {
   SensorController,
+  SensorProfile,
   DeviceStateEx,
+  DataType,
   type BLEDevice,
   type SensorData,
-  DataType,
-  SensorProfile,
 } from '@synchroni/synchroni_sdk_react_native';
 
 const SensorControllerInstance = SensorController.Instance;
@@ -39,13 +39,89 @@ export default function App() {
   const dataCtxMap = React.useRef<Map<string, DataCtx>>(); // MAC => data context
   let loopTimer = React.useRef<NodeJS.Timeout>();
 
-  function getSelectedDevice(): BLEDevice | undefined {
-    if (!allDevices.current) return;
-    let deviceIdx = selectedDeviceIdx.current!;
-    if (deviceIdx < 0 || deviceIdx >= allDevices.current!.length) return;
-    return allDevices.current![deviceIdx];
+  async function onScanButton() {
+    //do global init
+    if (!dataCtxMap.current) {
+      dataCtxMap.current = new Map<string, DataCtx>();
+      selectedDeviceIdx.current = 0;
+      SensorControllerInstance.onDeviceCallback = updateDeviceList;
+    }
+    if (!loopTimer.current) {
+      loopTimer.current = setInterval(() => {
+        refreshDeviceInfo();
+      }, 1000);
+    }
+
+    //scan logic
+    if (!SensorControllerInstance.isEnable) {
+      setMessage('please open bluetooth');
+      return;
+    }
+
+    if (!SensorControllerInstance.isScaning) {
+      setMessage('scanning');
+      await SensorControllerInstance.startScan(6000);
+    } else {
+      setMessage('stop scan');
+      SensorControllerInstance.stopScan();
+    }
   }
 
+  //connect/disconnect logic
+  async function onConnectDisonnectButton() {
+    const bledevice = getSelectedDevice();
+    if (!bledevice) return;
+    const sensor = SensorControllerInstance.getSensor(bledevice.Address);
+    if (!sensor) return;
+
+    //check if device is connected
+    if (sensor.deviceState === DeviceStateEx.Ready) {
+      //disconnect
+      if (await sensor.disconnect()) {
+        setMessage('disconnect: ' + bledevice.Name + ' success');
+      } else {
+        setMessage('disconnect: ' + bledevice.Name + ' fail');
+      }
+    } else {
+      //"connect" -> "register listeners" -> "init" -> "startDataNotify" -> "query device info"
+      setMessage('connecting');
+      if (!(await sensor.connect())) {
+        setMessage('connect: ' + bledevice.Name + ' fail');
+      } else {
+        setMessage('initing');
+        requireSensorData(bledevice); //register all listener
+
+        const inited = await sensor.init(
+          PackageSampleCount,
+          PowerRefreshInterval
+        );
+        if (!inited) {
+          setMessage('init fail');
+          return;
+        }
+
+        await sensor.startDataNotification();
+        const deviceInfo = await sensor.deviceInfo();
+
+        //show device info 5s
+        setMessage(
+          'Device: ' + JSON.stringify(deviceInfo) + ' \n inited: ' + inited
+        );
+        setEEGInfo('');
+        setEEGSample('');
+        setECGInfo('');
+        setECGSample('');
+        setAccInfo('');
+        setGyroInfo('');
+
+        setTimeout(() => {
+          setMessage('');
+        }, 5000);
+      }
+    }
+  }
+
+  //register all listeners
   function requireSensorData(bledevice: BLEDevice): DataCtx {
     if (dataCtxMap.current!.has(bledevice.Address)) {
       return dataCtxMap.current!.get(bledevice.Address)!;
@@ -60,7 +136,7 @@ export default function App() {
       sensor: SensorProfile,
       newstate: DeviceStateEx
     ) => {
-      // console.log("onstatechange: " + sensor.BLEDevice.Name + " : " + newstate);
+      // handle device disconnect, purge data cache
       const dataCtx = dataCtxMap.current!.get(sensor.BLEDevice.Address)!;
       if (newstate === DeviceStateEx.Disconnected) {
         dataCtx.lastEEG = undefined;
@@ -99,7 +175,7 @@ export default function App() {
       data.channelSamples.forEach((oneChannelSamples) => {
         oneChannelSamples.forEach((sample) => {
           if (sample.isLost) {
-            //do some logic
+            //do some extra logic if this data is lost
           } else {
             //draw with sample.data & sample.channelIndex
             // console.log(sample.channelIndex + ' | ' + sample.sampleIndex + ' | ' + sample.data + ' | ' + sample.impedance);
@@ -109,6 +185,28 @@ export default function App() {
     };
 
     return newDataCtx;
+  }
+
+  //start / stop data transfer
+  function onDataSwitchButton() {
+    const bledevice = getSelectedDevice();
+    if (!bledevice) return;
+    const sensor = SensorControllerInstance.getSensor(bledevice.Address);
+    if (!sensor) return;
+
+    if (!sensor.hasInited) {
+      setMessage('please init first');
+      return;
+    }
+    if (sensor.deviceState === DeviceStateEx.Ready) {
+      if (sensor.isDataTransfering) {
+        setMessage('stop DataNotification');
+        sensor.stopDataNotification();
+      } else {
+        setMessage('start DataNotification');
+        sensor.startDataNotification();
+      }
+    }
   }
 
   function processSampleData(data: SensorData) {
@@ -252,35 +350,11 @@ export default function App() {
     }
   }
 
-  function onScanButton() {
-    //do global init
-    if (!dataCtxMap.current) {
-      dataCtxMap.current = new Map<string, DataCtx>();
-      selectedDeviceIdx.current = 0;
-      SensorControllerInstance.onDeviceCallback = updateDeviceList;
-    }
-    if (!loopTimer.current) {
-      loopTimer.current = setInterval(() => {
-        refreshDeviceInfo();
-      }, 1000);
-    }
-
-    //scan logic
-    if (!SensorControllerInstance.isEnable) {
-      setMessage('please open bluetooth');
-      return;
-    }
-
-    if (!SensorControllerInstance.isScaning) {
-      setMessage('scanning');
-      SensorControllerInstance.startScan(6000).catch((error: Error) => {
-        setDevice('');
-        setMessage(error.message);
-      });
-    } else {
-      setMessage('stop scan');
-      SensorControllerInstance.stopScan();
-    }
+  function getSelectedDevice(): BLEDevice | undefined {
+    if (!allDevices.current) return;
+    let deviceIdx = selectedDeviceIdx.current!;
+    if (deviceIdx < 0 || deviceIdx >= allDevices.current!.length) return;
+    return allDevices.current![deviceIdx];
   }
 
   function onNextDeviceButton() {
@@ -296,92 +370,6 @@ export default function App() {
     }
 
     refreshDeviceInfo();
-  }
-
-  async function onConnectDisonnectButton() {
-    //connect/disconnect logic
-    const bledevice = getSelectedDevice();
-    if (!bledevice) return;
-    const sensor = SensorControllerInstance.getSensor(bledevice.Address);
-    if (!sensor) return;
-
-    if (sensor.deviceState === DeviceStateEx.Ready) {
-      if (await sensor.disconnect()) {
-        setMessage('disconnect: ' + bledevice.Name + ' success');
-      } else {
-        setMessage('disconnect: ' + bledevice.Name + ' fail');
-      }
-    } else {
-      if (await sensor.connect()) {
-        setMessage('connect: ' + bledevice.Name + ' success');
-      } else {
-        setMessage('connect: ' + bledevice.Name + ' fail');
-      }
-    }
-  }
-
-  async function onInitButton() {
-    // init data transfer logic
-
-    const bledevice = getSelectedDevice();
-    if (!bledevice) return;
-    const sensor = SensorControllerInstance.getSensor(bledevice.Address);
-    if (!sensor) return;
-
-    if (sensor.deviceState !== DeviceStateEx.Ready) {
-      setMessage('please connect before init');
-      return;
-    }
-    setMessage('initing');
-
-    const inited = await sensor.init(PackageSampleCount, PowerRefreshInterval);
-    const deviceInfo = await sensor.deviceInfo();
-    const batteryPower = await sensor.batteryPower();
-    console.log(
-      'Device: ' +
-        JSON.stringify(deviceInfo) +
-        ' \n power: ' +
-        batteryPower +
-        ' \n inited: ' +
-        inited
-    );
-    setMessage(
-      'Device: ' +
-        JSON.stringify(deviceInfo) +
-        ' \n power: ' +
-        batteryPower +
-        ' \n inited: ' +
-        inited
-    );
-    setEEGInfo('');
-    setEEGSample('');
-    setECGInfo('');
-    setECGSample('');
-    setAccInfo('');
-    setGyroInfo('');
-  }
-
-  function onDataSwitchButton() {
-    //start / stop data transfer
-
-    const bledevice = getSelectedDevice();
-    if (!bledevice) return;
-    const sensor = SensorControllerInstance.getSensor(bledevice.Address);
-    if (!sensor) return;
-
-    if (!sensor.hasInited) {
-      setMessage('please init first');
-      return;
-    }
-    if (sensor.deviceState === DeviceStateEx.Ready) {
-      if (sensor.isDataTransfering) {
-        setMessage('stop DataNotification');
-        sensor.stopDataNotification();
-      } else {
-        setMessage('start DataNotification');
-        sensor.startDataNotification();
-      }
-    }
   }
 
   return (
@@ -408,22 +396,15 @@ export default function App() {
       />
 
       <Button
-        onPress={async () => {
-          onInitButton();
-        }}
-        title="init"
-      />
-
-      <Button
         onPress={() => {
           onDataSwitchButton();
         }}
         title="start/stop"
       />
       <Text />
-      <Text style={styles.text}>Message: {message} </Text>
-      <Text />
       <Text style={styles.text}>Device: {device}</Text>
+      <Text />
+      <Text style={styles.text}>Message: {message} </Text>
       <Text />
       <Text style={styles.text}>State: {DeviceStateEx[Number(state)]}</Text>
       <Text />
