@@ -22,7 +22,7 @@
 		</data>
 		<key>Headers/sensorProfile.h</key>
 		<data>
-		MreEnriJzKQho5+fafJvVMVA4zE=
+		kgC5rwneW4MA0Y6dEi+HkyzlyJ4=
 		</data>
 		<key>Info.plist</key>
 		<data>
@@ -83,11 +83,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			MreEnriJzKQho5+fafJvVMVA4zE=
+			kgC5rwneW4MA0Y6dEi+HkyzlyJ4=
 			</data>
 			<key>hash2</key>
 			<data>
-			zCY0mtvX5JxTQJE9thg8y7X9rrmZ+yn6iSpzWvCjetM=
+			8ynz7b6OBlP4gHOQFQ2tBqUYZXcM6Nxa6Yo3nCIyNcI=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

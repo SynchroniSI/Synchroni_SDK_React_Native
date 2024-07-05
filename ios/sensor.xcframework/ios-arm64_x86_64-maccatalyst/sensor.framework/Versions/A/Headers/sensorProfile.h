@@ -80,6 +80,8 @@
 - (void)initDataTransfer:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)getBattery:(NSTimeInterval)timeout completion:(void (^)(int battery))completionHandler;
 - (void)getDeviceInfo:(NSTimeInterval)timeout completion:(void (^)(DeviceInfo* deviceInfo))completionHandler;
+- (void)startDataNotification:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)stopDataNotification:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 
 @end
 

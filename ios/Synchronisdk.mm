@@ -144,8 +144,9 @@ RCT_EXPORT_MODULE()
             return;
         }
         
-        BOOL result = [dataCtx.profile startDataNotification];
-        resolve(@(result));
+        [dataCtx.profile startDataNotification:TIMEOUT completion:^(BOOL success) {
+            resolve(@(success));
+        }];
         return;
     }
     resolve(@(FALSE));
@@ -159,9 +160,9 @@ RCT_EXPORT_MODULE()
             resolve(@(FALSE));
             return;
         }
-        
-        BOOL result = [dataCtx.profile stopDataNotification];
-        resolve(@(result));
+        [dataCtx.profile stopDataNotification:TIMEOUT completion:^(BOOL success) {
+            resolve(@(success));
+        }];
         return;
     }
     resolve(@(FALSE));
