@@ -98,7 +98,6 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       }
       impedanceData.clear();
       saturationData.clear();
-      notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
     }
   }
   private HashMap<String, SensorDataContext> sensorDataContextMap;
@@ -517,6 +516,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
 
         if (newState == SensorProfile.BluetoothDeviceStateEx.Disconnected){
           ctx.clear();
+          ctx.notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
         }
         WritableMap result = Arguments.createMap();
         result.putString("deviceMac", sensorProfile.getDevice().getAddress());

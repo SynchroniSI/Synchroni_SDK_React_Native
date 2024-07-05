@@ -70,6 +70,10 @@ export default class SensorProfile {
       return true;
     }
 
+    if (this._isDisconnecting) {
+      console.warn('Please connect after disconnect return');
+      return false;
+    }
     return new Promise<boolean>((resolve) => {
       this._connectQueue.push(resolve);
       if (this._isConnecting) {
@@ -96,7 +100,10 @@ export default class SensorProfile {
     if (this.deviceState === DeviceStateEx.Disconnected) {
       return true;
     }
-
+    if (this._isConnecting) {
+      console.warn('Please disconnect after connect return');
+      return false;
+    }
     return new Promise<boolean>((resolve) => {
       this._disconnectQueue.push(resolve);
       if (this._isDisconnecting) {
@@ -427,7 +434,6 @@ export default class SensorProfile {
     });
 
     if (result) {
-      this.stopDataNotification();
     } else {
       this.disconnect();
     }
@@ -451,7 +457,7 @@ export default class SensorProfile {
   };
 
   private _refreshConnection = (): void => {
-    const TIMEOUT = 5000;
+    const TIMEOUT = 10000;
 
     if (this._connectTick > -1) {
       const delta = new Date().getTime() - this._connectTick;
@@ -480,10 +486,6 @@ export default class SensorProfile {
     packageSampleCount: number,
     powerRefreshInterval: number
   ): Promise<boolean> => {
-    try {
-      await this.stopDataNotification();
-    } catch (error) {}
-
     try {
       if (!this._powerTimer) {
         this._powerTimer = setInterval(
