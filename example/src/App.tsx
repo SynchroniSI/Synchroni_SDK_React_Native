@@ -10,12 +10,17 @@ import {
   type SensorData,
 } from '@synchroni/synchroni_sdk_react_native';
 
+import WebSocketCmd from './WebsocketCmd';
+
 const SensorControllerInstance = SensorController.Instance;
 const PackageSampleCount = 8;
 const PowerRefreshInterval = 30 * 1000;
 
+const TestURL = 'ws://192.168.100.77:13145';
+
 type DataCtx = {
   sensor: SensorProfile;
+  socketClient: WebSocketCmd;
   power?: number;
   lastEEG?: SensorData;
   lastECG?: SensorData;
@@ -73,6 +78,7 @@ export default function App() {
     if (!bledevice) return;
     const sensor = SensorControllerInstance.getSensor(bledevice.Address);
     if (!sensor) return;
+    var ctx = requireSensorData(bledevice);
 
     //check if device is connected
     if (sensor.deviceState === DeviceStateEx.Ready) {
@@ -89,7 +95,6 @@ export default function App() {
         setMessage('connect: ' + bledevice.Name + ' fail');
       } else {
         setMessage('initing');
-        requireSensorData(bledevice); //register all listener
 
         const inited = await sensor.init(
           PackageSampleCount,
@@ -99,9 +104,10 @@ export default function App() {
           setMessage('init fail');
           return;
         }
+        const deviceInfo = await sensor.deviceInfo();
 
         await sensor.startDataNotification();
-        const deviceInfo = await sensor.deviceInfo();
+        ctx.socketClient.boardCastNativeDataSwitch(true);
 
         //show device info 5s
         setMessage(
@@ -129,7 +135,15 @@ export default function App() {
     //do init context and set callback
     let sensorProfile = SensorControllerInstance.requireSensor(bledevice);
 
-    const newDataCtx: DataCtx = { sensor: sensorProfile };
+    const websocketCmd: WebSocketCmd = new WebSocketCmd(
+      TestURL,
+      bledevice.Address,
+      'OB'
+    );
+    const newDataCtx: DataCtx = {
+      sensor: sensorProfile,
+      socketClient: websocketCmd,
+    };
     dataCtxMap.current!.set(bledevice.Address, newDataCtx);
 
     sensorProfile.onStateChanged = (
@@ -143,6 +157,10 @@ export default function App() {
         dataCtx.lastECG = undefined;
         dataCtx.lastACC = undefined;
         dataCtx.lastGYRO = undefined;
+
+        dataCtx.socketClient.close();
+      } else if (newstate === DeviceStateEx.Ready) {
+        dataCtx.socketClient.open();
       }
     };
 
@@ -154,6 +172,15 @@ export default function App() {
       setMessage('got power: ' + sensor.BLEDevice.Name + ' : ' + power);
       const dataCtx = dataCtxMap.current!.get(sensor.BLEDevice.Address)!;
       dataCtx.power = power;
+    };
+
+    sensorProfile.onNativeDataCallback = (
+      sensor: SensorProfile,
+      data: string
+    ) => {
+      // console.log("got native data: " + sensor.BLEDevice.Address + " => " + data.length);
+      const dataCtx = dataCtxMap.current!.get(sensor.BLEDevice.Address)!;
+      dataCtx.socketClient.boardCastNativeData(data);
     };
 
     sensorProfile.onDataCallback = (
@@ -188,7 +215,7 @@ export default function App() {
   }
 
   //start / stop data transfer
-  function onDataSwitchButton() {
+  async function onDataSwitchButton() {
     const bledevice = getSelectedDevice();
     if (!bledevice) return;
     const sensor = SensorControllerInstance.getSensor(bledevice.Address);
@@ -198,13 +225,18 @@ export default function App() {
       setMessage('please init first');
       return;
     }
+
+    const ctx = requireSensorData(bledevice);
+
     if (sensor.deviceState === DeviceStateEx.Ready) {
       if (sensor.isDataTransfering) {
         setMessage('stop DataNotification');
-        sensor.stopDataNotification();
+        await sensor.stopDataNotification();
+        ctx.socketClient.boardCastNativeDataSwitch(false);
       } else {
         setMessage('start DataNotification');
-        sensor.startDataNotification();
+        await sensor.startDataNotification();
+        ctx.socketClient.boardCastNativeDataSwitch(true);
       }
     }
   }
@@ -281,7 +313,7 @@ export default function App() {
   function updateDeviceList(devices: BLEDevice[]) {
     let filterDevices = devices.filter((item) => {
       //filter OB serials
-      return item.Name.startsWith('OB');
+      return item.Name.startsWith('OB5000');
     });
 
     let connectedDevices = SensorControllerInstance.getConnectedDevices();

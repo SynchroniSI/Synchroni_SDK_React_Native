@@ -2,6 +2,7 @@ package com.synchronisdk;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
+import android.util.Base64;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -25,6 +26,7 @@ import com.sensor.ScanCallback;
 import com.sensor.SensorProfile;
 import com.sensor.SensorScaner;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -257,6 +259,20 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     sensorData.channelSamples = channelSamples;
   }
 
+  private void sendNativeData(ReactContext reactContext, SensorDataContext ctx, byte[] sensorData) {
+
+    String base64;
+    try {
+      base64 = Base64.encodeToString(sensorData, Base64.DEFAULT);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return;
+    }
+
+    base64 = ctx.deviceMac + "|" + base64;
+//    Log.d(TAG, base64);
+    sendEvent(reactContext, "GOT_NATIVE_DATA", base64);
+  }
   private void sendSensorData(ReactContext reactContext, SensorDataContext ctx, SensorData sensorData){
     Vector<Vector<SensorData.Sample>> channelSamples = sensorData.channelSamples;
     sensorData.channelSamples = null;
@@ -343,6 +359,8 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
         String deviceMac = sensorProfile.getDevice().getAddress();
         SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
         if (ctx == null) return;
+
+        sendNativeData(context, ctx, data);
 
         if (data[0] == SensorProfile.NotifDataType.NTF_IMPEDANCE){
           int offset = 1;

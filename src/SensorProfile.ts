@@ -27,6 +27,12 @@ export default class SensorProfile {
     this._onData = callback;
   }
 
+  public set onNativeDataCallback(
+    callback: (sensor: SensorProfile, base64Data: string) => void
+  ) {
+    this._onNativeData = callback;
+  }
+
   public set onPowerChanged(
     callback: (sensor: SensorProfile, power: number) => void
   ) {
@@ -330,6 +336,9 @@ export default class SensorProfile {
   private _onData:
     | ((sensor: SensorProfile, signalData: SensorData) => void)
     | undefined;
+  private _onNativeData:
+    | ((sensor: SensorProfile, base64Data: string) => void)
+    | undefined;
   private _onStateChange:
     | ((sensor: SensorProfile, newstate: DeviceStateEx) => void)
     | undefined;
@@ -413,6 +422,12 @@ export default class SensorProfile {
   emitOnData(signalData: SensorData) {
     if (this._onData) {
       this._onData(this, signalData);
+    }
+  }
+
+  emitOnNativeData(base64Data: string) {
+    if (this._onNativeData) {
+      this._onNativeData(this, base64Data);
     }
   }
 

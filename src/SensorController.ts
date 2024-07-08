@@ -117,6 +117,10 @@ export default class SensorController {
       }
     );
 
+    this.nativeEventEmitter.addListener('GOT_NATIVE_DATA', (data: string) => {
+      this.dispatchNativeData('GOT_NATIVE_DATA', data);
+    });
+
     this.nativeEventEmitter.addListener('GOT_DATA', (data: SensorData) => {
       this.dispatchData('GOT_DATA', data);
     });
@@ -232,6 +236,14 @@ export default class SensorController {
     var device = this.getSensor(sensorData.deviceMac);
     if (device) {
       device.emitOnData(sensorData);
+    }
+  }
+
+  private dispatchNativeData(_: String, base64Data: string) {
+    var datas = base64Data.split('|');
+    var device = this.getSensor(datas[0]!);
+    if (device) {
+      device.emitOnNativeData(datas[1]!);
     }
   }
 }
