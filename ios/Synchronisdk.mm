@@ -200,6 +200,22 @@ RCT_EXPORT_MODULE()
     resolve(@(0));
 }
 
+- (void)_initIMU:(NSString*_Nonnull)deviceMac packageSampleCount:(int)inPackageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    
+    SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
+    if (dataCtx){
+        if (dataCtx.profile.state != BLEStateReady){
+            resolve(@(0));
+            return;
+        }
+        [dataCtx.profile initIMU:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
+            resolve(@(dataCtx.profile.AccChannelCount));
+        }];
+        return;
+    }
+    resolve(@(0));
+}
+
 -(void)_initDataTransfer:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
@@ -336,6 +352,13 @@ packageSampleCount:(double)packageSampleCount
     [self _initECG:deviceMac packageSampleCount:packageSampleCount resolve:resolve reject:reject];
 }
 
+- (void)initIMU:(NSString *)deviceMac
+packageSampleCount:(double)packageSampleCount
+        resolve:(RCTPromiseResolveBlock)resolve
+         reject:(RCTPromiseRejectBlock)reject{
+    [self _initIMU:deviceMac packageSampleCount:packageSampleCount resolve:resolve reject:reject];
+}
+
 - (void)initDataTransfer:(NSString *)deviceMac
                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject{
@@ -426,6 +449,11 @@ RCT_EXPORT_METHOD(initECG:(NSString*_Nonnull)deviceMac packageSampleCount:(NSNum
 RCT_EXPORT_METHOD(initEEG:(NSString*_Nonnull)deviceMac packageSampleCount:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject){
     
     [self _initEEG:deviceMac  packageSampleCount:[packageSampleCount intValue] resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(initIMU:(NSString*_Nonnull)deviceMac packageSampleCount:(NSNumber*_Nonnull)packageSampleCount resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject){
+    
+    [self _initIMU:deviceMac  packageSampleCount:[packageSampleCount intValue] resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(initDataTransfer:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {

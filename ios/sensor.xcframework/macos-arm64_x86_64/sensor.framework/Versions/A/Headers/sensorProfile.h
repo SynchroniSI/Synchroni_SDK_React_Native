@@ -66,6 +66,8 @@
 @property (atomic, assign, readonly) bool hasInit;
 @property (atomic, assign, readonly) int EEGChannelCount;
 @property (atomic, assign, readonly) int ECGChannelCount;
+@property (atomic, assign, readonly) int AccChannelCount;
+@property (atomic, assign, readonly) int GyroChannelCount;
 @property (atomic, assign, readonly) bool hasStartDataNotification;
 
 
@@ -77,6 +79,7 @@
 - (void)initAll:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initEEG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initECG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)initIMU:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initDataTransfer:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)getBattery:(NSTimeInterval)timeout completion:(void (^)(int battery))completionHandler;
 - (void)getDeviceInfo:(NSTimeInterval)timeout completion:(void (^)(DeviceInfo* deviceInfo))completionHandler;
