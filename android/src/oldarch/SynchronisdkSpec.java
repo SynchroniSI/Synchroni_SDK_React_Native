@@ -61,6 +61,9 @@ abstract class SynchronisdkSpec extends ReactContextBaseJavaModule {
   public abstract void initECG(String deviceMac, double packageSampleCount, Promise promise);
   @ReactMethod
   @DoNotStrip
+  public abstract void initIMU(String deviceMac, double packageSampleCount, Promise promise);
+  @ReactMethod
+  @DoNotStrip
   public abstract void initDataTransfer(String deviceMac, Promise promise);
   @ReactMethod
   @DoNotStrip

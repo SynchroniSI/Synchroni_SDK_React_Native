@@ -226,6 +226,8 @@ export default class SensorProfile {
     if (this._deviceInfo) {
       this._deviceInfo.EegChannelCount = this._EEGChannelCount;
       this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
+      this._deviceInfo.AccChannelCount = this._IMUChannelCount;
+      this._deviceInfo.GyroChannelCount = this._IMUChannelCount;
       return this._deviceInfo;
     }
 
@@ -242,6 +244,8 @@ export default class SensorProfile {
           if (this._deviceInfo) {
             this._deviceInfo.EegChannelCount = this._EEGChannelCount;
             this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
+            this._deviceInfo.AccChannelCount = this._IMUChannelCount;
+            this._deviceInfo.GyroChannelCount = this._IMUChannelCount;
           }
         })
         .catch((error) => {
@@ -309,6 +313,7 @@ export default class SensorProfile {
 
   private _EEGChannelCount: number;
   private _ECGChannelCount: number;
+  private _IMUChannelCount: number;
   private _isConnecting: boolean;
   private _isDisconnecting: boolean;
   private _hasInited: boolean;
@@ -360,6 +365,7 @@ export default class SensorProfile {
 
     this._EEGChannelCount = 0;
     this._ECGChannelCount = 0;
+    this._IMUChannelCount = 0;
     this._deviceInfo = undefined;
 
     if (!Synchronisdk.initSensor(device.Address)) {
@@ -385,6 +391,7 @@ export default class SensorProfile {
     this._powerCache = -1;
     this._EEGChannelCount = 0;
     this._ECGChannelCount = 0;
+    this._IMUChannelCount = 0;
     this._deviceInfo = undefined;
 
     if (this._powerTimer) {
@@ -508,6 +515,12 @@ export default class SensorProfile {
     }
 
     try {
+      this._IMUChannelCount = await this._initIMU(packageSampleCount);
+    } catch (error) {
+      this._IMUChannelCount = 0;
+    }
+
+    try {
       if (this._EEGChannelCount > 0 || this._ECGChannelCount > 0) {
         this._hasInited = await this._initDataTransfer();
       } else {
@@ -545,6 +558,10 @@ export default class SensorProfile {
 
   private async _initECG(packageSampleCount: number): Promise<number> {
     return Synchronisdk.initECG(this._device.Address, packageSampleCount);
+  }
+
+  private async _initIMU(packageSampleCount: number): Promise<number> {
+    return Synchronisdk.initIMU(this._device.Address, packageSampleCount);
   }
 
   private async _initDataTransfer(): Promise<boolean> {
