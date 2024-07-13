@@ -309,6 +309,11 @@ export default class SensorProfile {
           pendings.forEach((promise) => {
             promise(this._hasInited);
           });
+
+          if (!this._hasInited && this._featureMap === 0) {
+            //maybe ble error, disconnect
+            this.disconnect();
+          }
         });
     });
   };
