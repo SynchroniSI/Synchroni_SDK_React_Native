@@ -11,7 +11,7 @@ import {
 } from '@synchroni/synchroni_sdk_react_native';
 
 const SensorControllerInstance = SensorController.Instance;
-const PackageSampleCount = 8;
+const PackageSampleCount = 16;
 const PowerRefreshInterval = 30 * 1000;
 
 type DataCtx = {

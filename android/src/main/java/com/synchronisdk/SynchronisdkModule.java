@@ -39,7 +39,6 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   static final int DATA_TYPE_GYRO = 3;
   static final int DATA_TYPE_COUNT = 4;
   static final int TIMEOUT = 50000;
-
   private DataNotificationCallback dataCallback;
 
   static class SensorData {
@@ -82,13 +81,30 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     Vector<Float> impedanceData;
     Vector<Float> saturationData;
     int notifyDataFlag;
-
+    int featureMap;
+    public boolean hasEMG()
+    {
+      return (featureMap & SensorProfile.FeatureMapFlags.GFD_FEAT_EMG) != 0;
+    }
+    public boolean hasEEG(){
+      return (featureMap & SensorProfile.FeatureMapFlags.GFD_FEAT_EEG) != 0;
+    }
+    public boolean hasECG(){
+      return (featureMap & SensorProfile.FeatureMapFlags.GFD_FEAT_ECG) != 0;
+    }
+    public boolean hasImpedance(){
+      return (featureMap & SensorProfile.FeatureMapFlags.GFD_FEAT_IMPEDANCE) != 0;
+    }
+    public boolean hasIMU(){
+      return (featureMap & SensorProfile.FeatureMapFlags.GFD_FEAT_IMU) != 0;
+    }
     public SensorDataContext(String _deviceMac){
       deviceMac = _deviceMac;
       sensorData = new SensorData[DATA_TYPE_COUNT];
       impedanceData = new Vector<Float>();
       saturationData = new Vector<Float>();
-      notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE;
+      notifyDataFlag = 0;
+      featureMap = 0;
     }
     public void clear(){
       for (int index = 0;index < DATA_TYPE_COUNT;++index){
@@ -580,6 +596,10 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       promise.reject("initEEG","invalid device");
       return;
     }
+    if (!ctx.hasEEG()){
+      promise.reject("initEEG","not support");
+      return;
+    }
     sensor.getEegDataConfig(new CommandResponseCallback() {
       @Override
       public void onGetEegDataConfig(int resp, int sampleRate, long channelMask, int packageSampleCount, int resolutionBits, double microVoltConversionK) {
@@ -602,19 +622,25 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                 Log.d(TAG, "Device State: " + "get  EEG Cap succeeded");
                 ctx.sensorData[DATA_TYPE_EEG].channelCount = maxChannelCount;
                 ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_EEG);
+
                 if (inPackageSampleCount <= 0){
                   promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
                   return;
                 }
-                sensor.setEegDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
+                int tryPackageSampleCount = inPackageSampleCount;
+                if (inPackageSampleCount > maxPackageSampleCount){
+                  tryPackageSampleCount = maxPackageSampleCount;
+                }
+                final int tryPackageSampleCount2 = tryPackageSampleCount;
+                sensor.setEegDataConfig(data.sampleRate, (int) data.channelMask, tryPackageSampleCount2, data.resolutionBits, new CommandResponseCallback() {
                   @Override
                   public void onSetCommandResponse(int resp) {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
-                      data.packageSampleCount = inPackageSampleCount;
+                      data.packageSampleCount = tryPackageSampleCount2;
                       promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
                     }else{
                       Log.d(TAG, "Device State: " + "set  EEG Config failed, resp code: " + resp);
-                      promise.resolve(0);
+                      promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
                     }
                   }
                 }, TIMEOUT);
@@ -646,6 +672,10 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       promise.reject("initECG","invalid device");
       return;
     }
+    if (!ctx.hasECG()){
+      promise.reject("initECG","not support");
+      return;
+    }
     sensor.getEcgDataConfig(new CommandResponseCallback() {
       @Override
       public void onGetEcgDataConfig(int resp, int sampleRate, int channelMask, int packageSampleCount, int resolutionBits, double microVoltConversionK) {
@@ -672,15 +702,20 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                   promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
                   return;
                 }
-                sensor.setEcgDataConfig(data.sampleRate, (int) data.channelMask, inPackageSampleCount, data.resolutionBits, new CommandResponseCallback() {
+                int tryPackageSampleCount = inPackageSampleCount;
+                if (inPackageSampleCount > maxPackageSampleCount){
+                  tryPackageSampleCount = maxPackageSampleCount;
+                }
+                final int tryPackageSampleCount2 = tryPackageSampleCount;
+                sensor.setEcgDataConfig(data.sampleRate, (int) data.channelMask, tryPackageSampleCount2, data.resolutionBits, new CommandResponseCallback() {
                   @Override
                   public void onSetCommandResponse(int resp) {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
-                      data.packageSampleCount = inPackageSampleCount;
+                      data.packageSampleCount = tryPackageSampleCount2;
                       promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
                     }else{
                       Log.d(TAG, "Device State: " + "set  ECG Config failed, resp code: " + resp);
-                      promise.resolve(0);
+                      promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
                     }
                   }
                 }, TIMEOUT);
@@ -710,6 +745,10 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
     if (ctx == null) {
       promise.reject("initIMU","invalid device");
+      return;
+    }
+    if (!ctx.hasIMU()){
+      promise.reject("initIMU","not support");
       return;
     }
     sensor.getImuDataConfig(new CommandResponseCallback() {
@@ -744,16 +783,21 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
             promise.resolve(channelCount);
             return;
           }
-          sensor.setImuDataConfig(sampleRate, channelCount, inPackageSampleCount, new CommandResponseCallback() {
+          int tryPackageSampleCount = inPackageSampleCount;
+          if (inPackageSampleCount > 10){
+            tryPackageSampleCount = 10;
+          }
+          final int tryPackageSampleCount2 = tryPackageSampleCount;
+          sensor.setImuDataConfig(sampleRate, channelCount, tryPackageSampleCount2, new CommandResponseCallback() {
             @Override
             public void onSetCommandResponse(int resp) {
               if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
-                ctx.sensorData[DATA_TYPE_ACC].packageSampleCount = inPackageSampleCount;
-                ctx.sensorData[DATA_TYPE_GYRO].packageSampleCount = inPackageSampleCount;
+                ctx.sensorData[DATA_TYPE_ACC].packageSampleCount = tryPackageSampleCount2;
+                ctx.sensorData[DATA_TYPE_GYRO].packageSampleCount = tryPackageSampleCount2;
                 promise.resolve(ctx.sensorData[DATA_TYPE_ACC].channelCount);
               }else{
                 Log.d(TAG, "Device State: " + "set IMU Config failed, resp code: " + resp);
-                promise.resolve(0);
+                promise.resolve(ctx.sensorData[DATA_TYPE_ACC].channelCount);
               }
             }
           }, TIMEOUT);
@@ -766,7 +810,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   @ReactMethod
   @DoNotStrip
   @Override
-  public void initDataTransfer(String deviceMac, Promise promise) {
+  public void initDataTransfer(String deviceMac, boolean isGetFeature, Promise promise) {
     if (deviceMac == null || deviceMac.isEmpty()){
       promise.reject("initDataTransfer","invalid device");
       return;
@@ -781,18 +825,38 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       promise.reject("initDataTransfer","invalid device");
       return;
     }
-    sensor.setDataNotifSwitch(ctx.notifyDataFlag, new CommandResponseCallback() {
-      @Override
-      public void onSetCommandResponse(int resp) {
-        if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
-          Log.d(TAG, "Device State: " + "Set Data Switch succeeded");
-          promise.resolve(true);
-        } else {
-          Log.d(TAG,  "Device State: " + "Set Data Switch failed, resp code: " + resp);
-          promise.resolve(false);
+    if (isGetFeature){
+      sensor.getFeatureMap(new CommandResponseCallback() {
+        @Override
+        public void onGetFeatureMap(int resp, int featureMap) {
+          if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
+            Log.d(TAG, "Device State: " + "getFeatureMap succeeded");
+            ctx.featureMap = featureMap;
+            if (ctx.hasImpedance()){
+              ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_IMPEDANCE);
+            }
+            promise.resolve(featureMap);
+          } else {
+            Log.d(TAG,  "Device State: " + "getFeatureMap failed, resp code: " + resp);
+            promise.resolve(0);
+          }
         }
-      }
-    }, TIMEOUT);
+      }, TIMEOUT);
+    }else{
+      sensor.setDataNotifSwitch(ctx.notifyDataFlag, new CommandResponseCallback() {
+        @Override
+        public void onSetCommandResponse(int resp) {
+          if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
+            Log.d(TAG, "Device State: " + "Set Data Switch succeeded");
+            promise.resolve(ctx.notifyDataFlag);
+          } else {
+            Log.d(TAG,  "Device State: " + "Set Data Switch failed, resp code: " + resp);
+            promise.resolve(0);
+          }
+        }
+      }, TIMEOUT);
+    }
+
   }
   @ReactMethod
   @DoNotStrip
@@ -817,13 +881,32 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   @ReactMethod
   @DoNotStrip
   @Override
-  public void getDeviceInfo(String deviceMac, Promise promise) {
+  public void getDeviceInfo(String deviceMac, boolean onlyMTU, Promise promise) {
     if (deviceMac == null || deviceMac.isEmpty()){
       promise.reject("getDeviceInfo","invalid device");
       return;
     }
     SensorProfile sensor = sensorScaner.getSensor(deviceMac);
     WritableMap result = new WritableNativeMap();
+
+    sensor.getBLEMtuInfo(new CommandResponseCallback() {
+      @Override
+      public void onGetBLEMtuInfo(int resp, int isMTUFine, int MTUSize) {
+        if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
+          result.putInt("MTUSize", MTUSize);
+          if (onlyMTU){
+            promise.resolve(result);
+          }
+        }else{
+          if (onlyMTU) {
+            promise.reject("getDeviceInfo", "only mtu got error: " + resp);
+          }
+        }
+      }
+    }, TIMEOUT);
+    if (onlyMTU){
+      return;
+    }
     sensor.getDeviceName(new CommandResponseCallback() {
       @Override
       public void onGetDeviceName(int resp, String deviceName) {

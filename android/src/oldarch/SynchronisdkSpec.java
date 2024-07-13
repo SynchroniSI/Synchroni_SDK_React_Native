@@ -64,13 +64,13 @@ abstract class SynchronisdkSpec extends ReactContextBaseJavaModule {
   public abstract void initIMU(String deviceMac, double packageSampleCount, Promise promise);
   @ReactMethod
   @DoNotStrip
-  public abstract void initDataTransfer(String deviceMac, Promise promise);
+  public abstract void initDataTransfer(String deviceMac, boolean isGetFeature, Promise promise);
   @ReactMethod
   @DoNotStrip
   public abstract void getBatteryLevel(String deviceMac, Promise promise);
   @ReactMethod
   @DoNotStrip
-  public abstract void getDeviceInfo(String deviceMac, Promise promise);
+  public abstract void getDeviceInfo(String deviceMac, boolean onlyMTU, Promise promise);
   ////////////////////////////////////////////////////////////////////////////////////////////
   @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip

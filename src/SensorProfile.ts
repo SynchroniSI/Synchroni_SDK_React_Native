@@ -128,9 +128,13 @@ export default class SensorProfile {
 
   public startDataNotification = async (): Promise<boolean> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
+      console.warn('Please startDataNotification after inited');
       return false;
     }
-
+    if (!this.hasInited) {
+      console.warn('Please startDataNotification after inited');
+      return false;
+    }
     return new Promise<boolean>((resolve) => {
       this._startDataNotificationQueue.push(resolve);
       if (this._isSwitchDataTransfering) {
@@ -158,6 +162,11 @@ export default class SensorProfile {
 
   public stopDataNotification = async (): Promise<boolean> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
+      console.warn('Please stopDataNotification after inited');
+      return false;
+    }
+    if (!this.hasInited) {
+      console.warn('Please stopDataNotification after inited');
       return false;
     }
     return new Promise<boolean>((resolve) => {
@@ -189,6 +198,7 @@ export default class SensorProfile {
 
   public batteryPower = async (): Promise<number> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
+      console.warn('Please getBattery after connected');
       return -1;
     }
 
@@ -220,14 +230,14 @@ export default class SensorProfile {
 
   public deviceInfo = async (): Promise<DeviceInfo | undefined> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
+      console.warn('Please get deviceInfo after connected');
       return undefined;
     }
-
+    if (!this.hasInited) {
+      console.warn('Please get deviceInfo after inited');
+      return undefined;
+    }
     if (this._deviceInfo) {
-      this._deviceInfo.EegChannelCount = this._EEGChannelCount;
-      this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
-      this._deviceInfo.AccChannelCount = this._IMUChannelCount;
-      this._deviceInfo.GyroChannelCount = this._IMUChannelCount;
       return this._deviceInfo;
     }
 
@@ -238,7 +248,7 @@ export default class SensorProfile {
       }
       this._isFetchingDeviceInfo = true;
 
-      this._getDeviceInfo()
+      this._getDeviceInfo(false)
         .then((value: DeviceInfo | undefined) => {
           this._deviceInfo = value;
           if (this._deviceInfo) {
@@ -268,6 +278,7 @@ export default class SensorProfile {
     powerRefreshInterval: number
   ): Promise<boolean> => {
     if (this.deviceState !== DeviceStateEx.Ready) {
+      console.warn('Please init after connected');
       return false;
     }
     if (this._hasInited) {
@@ -311,6 +322,8 @@ export default class SensorProfile {
   private _connectQueue: Array<any>;
   private _disconnectQueue: Array<any>;
 
+  private _featureMap: number;
+  private _notifyFlag: number;
   private _EEGChannelCount: number;
   private _ECGChannelCount: number;
   private _IMUChannelCount: number;
@@ -363,6 +376,8 @@ export default class SensorProfile {
         false;
     this._powerCache = this._connectTick = this._disConnectTick = -1;
 
+    this._featureMap = 0;
+    this._notifyFlag = 0;
     this._EEGChannelCount = 0;
     this._ECGChannelCount = 0;
     this._IMUChannelCount = 0;
@@ -389,6 +404,7 @@ export default class SensorProfile {
       this._isSwitchDataTransfering =
         false;
     this._powerCache = -1;
+    this._notifyFlag = 0;
     this._EEGChannelCount = 0;
     this._ECGChannelCount = 0;
     this._IMUChannelCount = 0;
@@ -502,37 +518,135 @@ export default class SensorProfile {
       }
     } catch (error) {}
 
-    try {
-      this._EEGChannelCount = await this._initEEG(packageSampleCount);
-    } catch (error) {
-      this._EEGChannelCount = 0;
-    }
+    var index: number;
+    const RETRY_COUNT = 10;
 
-    try {
-      this._ECGChannelCount = await this._initECG(packageSampleCount);
-    } catch (error) {
-      this._ECGChannelCount = 0;
-    }
-
-    try {
-      this._IMUChannelCount = await this._initIMU(packageSampleCount);
-    } catch (error) {
-      this._IMUChannelCount = 0;
-    }
-
-    try {
-      if (this._EEGChannelCount > 0 || this._ECGChannelCount > 0) {
-        this._hasInited = await this._initDataTransfer();
-      } else {
-        this._hasInited = false;
+    for (index = 0; index < RETRY_COUNT; ++index) {
+      try {
+        this._featureMap = await this._initDataTransfer(true);
+        if (this._featureMap > 0) {
+          break;
+        }
+      } catch (error) {
+        console.error(error);
+        this._featureMap = 0;
       }
-      // console.log(this._supportEEG + "|" + this._supportECG + "|" + this._hasInited);
-      return this._hasInited;
-    } catch (error) {
+    }
+
+    if (this._featureMap === 0) {
       this._hasInited = false;
-      this.emitError(error);
       return false;
     }
+
+    console.log(this._featureMap);
+
+    for (index = 0; index < RETRY_COUNT; ++index) {
+      try {
+        this._deviceInfo = await this._getDeviceInfo(true);
+        console.log(JSON.stringify(this._deviceInfo));
+        if (this._deviceInfo.MTUSize >= 80) {
+          break;
+        }
+      } catch (error) {
+        console.error(error);
+        this._deviceInfo = undefined;
+      }
+    }
+
+    if (!this._deviceInfo) {
+      this._hasInited = false;
+      return false;
+    }
+
+    for (index = 0; index < RETRY_COUNT; ++index) {
+      try {
+        this._deviceInfo = await this._getDeviceInfo(false);
+        console.log(JSON.stringify(this._deviceInfo));
+        if (this._deviceInfo.MTUSize >= 80) {
+          break;
+        }
+      } catch (error) {
+        console.error(error);
+        this._deviceInfo = undefined;
+      }
+    }
+
+    if (!this._deviceInfo) {
+      this._hasInited = false;
+      return false;
+    }
+
+    /*eslint no-bitwise: ["error", { "allow": ["&"] }] */
+    if (this._featureMap & 0x000400000) {
+      for (index = 0; index < RETRY_COUNT; ++index) {
+        console.log('init eeg');
+        try {
+          this._EEGChannelCount = await this._initEEG(packageSampleCount);
+          if (this._EEGChannelCount > 0) {
+            break;
+          }
+        } catch (error) {
+          this._EEGChannelCount = 0;
+        }
+      }
+    }
+
+    /*eslint no-bitwise: ["error", { "allow": ["&"] }] */
+    if (this._featureMap & 0x000800000) {
+      for (index = 0; index < RETRY_COUNT; ++index) {
+        console.log('init ecg');
+        try {
+          this._ECGChannelCount = await this._initECG(packageSampleCount);
+          if (this._ECGChannelCount > 0) {
+            break;
+          }
+        } catch (error) {
+          this._ECGChannelCount = 0;
+        }
+      }
+    }
+
+    /*eslint no-bitwise: ["error", { "allow": ["&"] }] */
+    if (this._featureMap & 0x002000000) {
+      for (index = 0; index < RETRY_COUNT; ++index) {
+        console.log('init imu');
+        try {
+          this._IMUChannelCount = await this._initIMU(packageSampleCount);
+          if (this._IMUChannelCount > 0) {
+            break;
+          }
+        } catch (error) {
+          this._IMUChannelCount = 0;
+        }
+      }
+    }
+
+    this._deviceInfo.EegChannelCount = this._EEGChannelCount;
+    this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
+    this._deviceInfo.AccChannelCount = this._IMUChannelCount;
+    this._deviceInfo.GyroChannelCount = this._IMUChannelCount;
+
+    if (this._EEGChannelCount === 0 && this._ECGChannelCount === 0) {
+      this._notifyFlag = 0;
+      this._hasInited = false;
+      return false;
+    }
+
+    for (index = 0; index < RETRY_COUNT; ++index) {
+      console.log('init data transfer');
+      try {
+        this._notifyFlag = await this._initDataTransfer(false);
+        this._hasInited = this._notifyFlag > 0;
+        if (this._hasInited) {
+          break;
+        }
+      } catch (error) {
+        this._notifyFlag = 0;
+        this._hasInited = false;
+      }
+    }
+
+    return this._hasInited;
   };
   ////////////////////////////////////////////////////////
 
@@ -564,15 +678,15 @@ export default class SensorProfile {
     return Synchronisdk.initIMU(this._device.Address, packageSampleCount);
   }
 
-  private async _initDataTransfer(): Promise<boolean> {
-    return Synchronisdk.initDataTransfer(this._device.Address);
+  private async _initDataTransfer(isGetFeature: boolean): Promise<number> {
+    return Synchronisdk.initDataTransfer(this._device.Address, isGetFeature);
   }
 
   private async _getBatteryLevel(): Promise<number> {
     return Synchronisdk.getBatteryLevel(this._device.Address);
   }
 
-  private async _getDeviceInfo(): Promise<DeviceInfo> {
-    return Synchronisdk.getDeviceInfo(this._device.Address);
+  private async _getDeviceInfo(onlyMTU: boolean): Promise<DeviceInfo> {
+    return Synchronisdk.getDeviceInfo(this._device.Address, onlyMTU);
   }
 }
