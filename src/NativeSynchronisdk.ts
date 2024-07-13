@@ -30,6 +30,8 @@ export type DeviceInfo = {
   FirmwareVersion: string;
   EegChannelCount: number;
   EcgChannelCount: number;
+  AccChannelCount: number;
+  GyroChannelCount: number;
 };
 
 export type EventResult = {
@@ -75,6 +77,7 @@ export interface Spec extends TurboModule {
   stopDataNotification(deviceMac: string): Promise<boolean>;
   initEEG(deviceMac: string, packageSampleCount: number): Promise<number>;
   initECG(deviceMac: string, packageSampleCount: number): Promise<number>;
+  initIMU(deviceMac: string, packageSampleCount: number): Promise<number>;
   initDataTransfer(deviceMac: string): Promise<boolean>;
   getBatteryLevel(deviceMac: string): Promise<number>;
   getDeviceInfo(deviceMac: string): Promise<DeviceInfo>;

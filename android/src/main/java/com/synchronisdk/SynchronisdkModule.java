@@ -27,6 +27,7 @@ import com.sensor.SensorProfile;
 import com.sensor.SensorScaner;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -90,7 +91,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       sensorData = new SensorData[DATA_TYPE_COUNT];
       impedanceData = new Vector<Float>();
       saturationData = new Vector<Float>();
-      notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
+      notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE;
     }
     public void clear(){
       for (int index = 0;index < DATA_TYPE_COUNT;++index){
@@ -259,6 +260,13 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     sensorData.channelSamples = channelSamples;
   }
 
+  private void sendSensorDataInfo(ReactContext reactContext, SensorDataContext ctx, SensorData sensorData){
+    if (sensorData == null)
+      return;
+    String result = ctx.deviceMac + "|" + "native_data_info/OB/" + sensorData.dataType +"/"+ sensorData.packageSampleCount+"/" + sensorData.channelCount+"/"+sensorData.sampleRate+"/"+sensorData.resolutionBits+"/"+sensorData.K;
+    Log.d(TAG, "GOT_NATIVE_DATA" + result);
+    sendEvent(reactContext, "GOT_NATIVE_DATA", result);
+  }
   private void sendNativeData(ReactContext reactContext, SensorDataContext ctx, byte[] sensorData) {
 
     String base64;
@@ -320,31 +328,6 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   private void initDataContext(String deviceMac){
     SensorDataContext ctx = new SensorDataContext(deviceMac);
     sensorDataContextMap.put(deviceMac, ctx);
-    initACC_GYRO(ctx);
-  }
-
-  private void initACC_GYRO(SensorDataContext ctx){
-    SensorData data = new SensorData();
-    data.dataType = SensorProfile.NotifDataType.NTF_ACC_DATA;
-    data.sampleRate = 50;
-    data.resolutionBits = 16;
-    data.channelMask = 255;
-    data.channelCount = 3;
-    data.packageSampleCount = 1;
-    data.K = 1 / 8192.0;
-    data.clear();
-    ctx.sensorData[DATA_TYPE_ACC] = data;
-
-    SensorData data2 = new SensorData();
-    data2.dataType = SensorProfile.NotifDataType.NTF_GYO_DATA;
-    data2.sampleRate = 50;
-    data2.resolutionBits = 16;
-    data2.channelMask = 255;
-    data2.channelCount = 3;
-    data2.packageSampleCount = 1;
-    data2.K = 1 / 16.4;
-    data2.clear();
-    ctx.sensorData[DATA_TYPE_GYRO] = data2;
   }
 
   SynchronisdkModule(ReactApplicationContext context) {
@@ -534,7 +517,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
 
         if (newState == SensorProfile.BluetoothDeviceStateEx.Disconnected){
           ctx.clear();
-          ctx.notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE | SensorProfile.DataNotifFlags.DNF_ACCELERATE;
+          ctx.notifyDataFlag = SensorProfile.DataNotifFlags.DNF_IMPEDANCE;
         }
         WritableMap result = Arguments.createMap();
         result.putString("deviceMac", sensorProfile.getDevice().getAddress());
@@ -655,6 +638,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
                       data.packageSampleCount = inPackageSampleCount;
                       promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
+
                     }else{
                       Log.d(TAG, "Device State: " + "set  EEG Config failed, resp code: " + resp);
                       promise.resolve(0);
@@ -721,6 +705,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                     if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
                       data.packageSampleCount = inPackageSampleCount;
                       promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
+
                     }else{
                       Log.d(TAG, "Device State: " + "set  ECG Config failed, resp code: " + resp);
                       promise.resolve(0);
@@ -743,6 +728,73 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   @ReactMethod
   @DoNotStrip
   @Override
+  public void initIMU(String deviceMac, double packageSampleCount, Promise promise) {
+    final int inPackageSampleCount = (int) packageSampleCount;
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("initIMU","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+    if (ctx == null) {
+      promise.reject("initIMU","invalid device");
+      return;
+    }
+    sensor.getImuDataConfig(new CommandResponseCallback() {
+      @Override
+      public void onGetImuDataConfig(int resp, int sampleRate, int channelCount, int packageSampleCount, double accK, double gyroK) {
+        if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
+          Log.d(TAG, "Device State: " + "get  IMU Config succeeded");
+          SensorData data = new SensorData();
+          data.dataType = SensorProfile.NotifDataType.NTF_ACC_DATA;
+          data.sampleRate = sampleRate;
+          data.resolutionBits = 16;
+          data.channelMask = 255;
+          data.channelCount = channelCount;
+          data.packageSampleCount = packageSampleCount;
+          data.K = accK;
+          data.clear();
+          ctx.sensorData[DATA_TYPE_ACC] = data;
+
+          SensorData data2 = new SensorData();
+          data2.dataType = SensorProfile.NotifDataType.NTF_GYO_DATA;
+          data2.sampleRate = sampleRate;
+          data2.resolutionBits = 16;
+          data2.channelMask = 255;
+          data2.channelCount = channelCount;
+          data2.packageSampleCount = packageSampleCount;
+          data2.K = gyroK;
+          data2.clear();
+          ctx.sensorData[DATA_TYPE_GYRO] = data2;
+
+          ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_IMU);
+          if (inPackageSampleCount <= 0){
+            promise.resolve(channelCount);
+            return;
+          }
+          sensor.setImuDataConfig(sampleRate, channelCount, inPackageSampleCount, new CommandResponseCallback() {
+            @Override
+            public void onSetCommandResponse(int resp) {
+              if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS){
+                ctx.sensorData[DATA_TYPE_ACC].packageSampleCount = inPackageSampleCount;
+                ctx.sensorData[DATA_TYPE_GYRO].packageSampleCount = inPackageSampleCount;
+                promise.resolve(ctx.sensorData[DATA_TYPE_ACC].channelCount);
+
+              }else{
+                Log.d(TAG, "Device State: " + "set IMU Config failed, resp code: " + resp);
+                promise.resolve(0);
+              }
+            }
+          }, TIMEOUT);
+        } else {
+          Log.d(TAG, "Device State: " + "get  IMU Config failed, resp code: " + resp);
+        }
+      }
+    }, TIMEOUT);
+  }
+  @ReactMethod
+  @DoNotStrip
+  @Override
   public void initDataTransfer(String deviceMac, Promise promise) {
     if (deviceMac == null || deviceMac.isEmpty()){
       promise.reject("initDataTransfer","invalid device");
@@ -758,6 +810,12 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       promise.reject("initDataTransfer","invalid device");
       return;
     }
+
+    sendSensorDataInfo(SynchronisdkModule.this.getReactApplicationContext(),ctx, ctx.sensorData[DATA_TYPE_EEG]);
+    sendSensorDataInfo(SynchronisdkModule.this.getReactApplicationContext(),ctx, ctx.sensorData[DATA_TYPE_ECG]);
+    sendSensorDataInfo(SynchronisdkModule.this.getReactApplicationContext(),ctx, ctx.sensorData[DATA_TYPE_ACC]);
+    sendSensorDataInfo(SynchronisdkModule.this.getReactApplicationContext(),ctx, ctx.sensorData[DATA_TYPE_GYRO]);
+
     sensor.setDataNotifSwitch(ctx.notifyDataFlag, new CommandResponseCallback() {
       @Override
       public void onSetCommandResponse(int resp) {

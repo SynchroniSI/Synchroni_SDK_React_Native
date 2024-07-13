@@ -96,6 +96,12 @@ export default function App() {
       } else {
         setMessage('initing');
 
+        const opened = await ctx.socketClient.open();
+        console.log('websocket connected: ' + opened);
+
+        const registed = await ctx.socketClient.register();
+        console.log('websocket inited: ' + registed);
+
         const inited = await sensor.init(
           PackageSampleCount,
           PowerRefreshInterval
@@ -137,6 +143,7 @@ export default function App() {
 
     const websocketCmd: WebSocketCmd = new WebSocketCmd(
       TestURL,
+      bledevice.Name,
       bledevice.Address,
       'OB'
     );
@@ -180,7 +187,12 @@ export default function App() {
     ) => {
       // console.log("got native data: " + sensor.BLEDevice.Address + " => " + data.length);
       const dataCtx = dataCtxMap.current!.get(sensor.BLEDevice.Address)!;
-      dataCtx.socketClient.boardCastNativeData(data);
+      console.log('got native data: ' + data);
+      if (data.startsWith('native_data_info/')) {
+        dataCtx.socketClient.sendCmd(data, '');
+      } else {
+        dataCtx.socketClient.boardCastNativeData(data);
+      }
     };
 
     sensorProfile.onDataCallback = (

@@ -21,6 +21,7 @@ export default class WebSocketCmd {
   private appGroupID: string;
   private ws: WebSocket | undefined;
   private url: string;
+  private deviceName: string;
   private mac: string;
   private appType: string;
   private lastCmdID: number;
@@ -29,16 +30,20 @@ export default class WebSocketCmd {
   private cmdWaitingQueue: CmdItem[];
   private cmdResolveQueue: Map<string, CmdResolveReject>;
   private cmdTimeoutTimer: NodeJS.Timeout | undefined;
+  private connectTimeoutTimer: NodeJS.Timeout | undefined;
+  private connectQueue: CmdResolveReject[];
 
-  constructor(url: string, mac: string, appType: string) {
+  constructor(url: string, deviceName: string, mac: string, appType: string) {
     this.lastCmdID = 0;
     this.cmdResolveQueue = new Map<string, any>();
     this.cmdWaitingQueue = [];
     this.boradCastWaitingQueue = [];
     this.url = url;
+    this.deviceName = deviceName;
     this.mac = mac;
     this.appType = appType;
     this.appGroupID = '';
+    this.connectQueue = [];
   }
 
   public get isConnected(): boolean {
@@ -61,26 +66,77 @@ export default class WebSocketCmd {
     return this.appGroupID;
   }
 
-  public open() {
-    if (this.ws) return;
+  private async doRegister() {
+    if (!this.isConnected) {
+      return;
+    }
+    try {
+      const result = await this.register();
+      if (!result) {
+        console.error('register fail, retry after 10s');
+        setTimeout(() => {
+          this.doRegister();
+        }, 10000);
+      } else {
+        console.log('register success');
+      }
+    } catch (error) {
+      console.error('register fail, retry after 10s');
+      setTimeout(() => {
+        this.doRegister();
+      }, 10000);
+    }
+  }
 
-    const ws = new WebSocket(this.url);
-    ws.onopen = () => {
-      this.register();
-    };
+  public async open(timeout: number = 5000): Promise<boolean> {
+    if (!this.ws) {
+      const ws = new WebSocket(this.url);
+      ws.onopen = () => {
+        if (this.connectTimeoutTimer) {
+          clearTimeout(this.connectTimeoutTimer);
+          this.connectTimeoutTimer = undefined;
+          this.connectQueue.forEach((element) => {
+            element._resolve(true);
+          });
+        }
+        this.doRegister();
+      };
 
-    ws.onmessage = (e) => {
-      this.handleMessage(e.data);
-    };
+      ws.onmessage = (e) => {
+        this.handleMessage(e.data);
+      };
 
-    ws.onerror = (e) => {
-      console.error(e.message);
-    };
+      ws.onerror = (e) => {
+        console.error(e.message);
+      };
 
-    ws.onclose = (e) => {
-      this.onClose(e.reason);
-    };
-    this.ws = ws;
+      ws.onclose = (e) => {
+        this.onClose(e.reason);
+      };
+      this.ws = ws;
+    }
+    if (this.isConnected) {
+      return true;
+    }
+    return new Promise<boolean>((resolve, reject) => {
+      const resolves: CmdResolveReject = {
+        _resolve: resolve,
+        _reject: reject,
+      };
+      this.connectQueue.push(resolves);
+      if (!this.connectTimeoutTimer) {
+        this.connectTimeoutTimer = setTimeout(() => {
+          this.connectTimeoutTimer = undefined;
+          this.connectQueue.forEach((element) => {
+            if (this.isConnected) {
+              element._resolve(true);
+            } else {
+              element._resolve(false);
+            }
+          });
+        }, timeout);
+      }
+    });
   }
 
   public close() {
@@ -88,6 +144,28 @@ export default class WebSocketCmd {
       this.ws.close();
       this.ws = undefined;
     }
+  }
+  ////////////////////////////////////////////////////////////////////////////
+  public async setNativeDataInfo(
+    ntfDataType: number,
+    packageSampleCount: number,
+    channelCount: number,
+    sampleRate: number,
+    resolutionBits: number,
+    K: number
+  ): Promise<string> {
+    const dataInfos = [
+      'native_data_info',
+      this.appType,
+      ntfDataType,
+      packageSampleCount,
+      channelCount,
+      sampleRate,
+      resolutionBits,
+      K,
+    ];
+    const dataInfo = dataInfos.join('/');
+    return this.sendCmd(dataInfo, '');
   }
 
   public boardCastNativeDataSwitch(dataSwitch: Boolean) {
@@ -123,25 +201,29 @@ export default class WebSocketCmd {
   }
 
   public register = async (): Promise<boolean> => {
-    if (!this.ws) {
+    if (!this.isConnected) {
       return false;
+    }
+    if (this.hasInited) {
+      return true;
     }
     let item: CmdItem = {};
     item.id = '0';
     item.type = 'cmd';
-    item.value = 'register_app/' + this.appType + '/' + this.mac;
+    item.value =
+      'register_app/' + this.appType + '/' + this.deviceName + '/' + this.mac;
     item.timeout = 5000;
     if (!this.isConnected) {
       return false;
     } else {
-      return new Promise<boolean>((resolve) => {
+      return new Promise<boolean>((resolve, reject) => {
         if (!this.ws) {
           resolve(false);
           return;
         }
         const resolves: CmdResolveReject = {
           _resolve: resolve,
-          _reject: undefined,
+          _reject: reject,
         };
         this.cmdResolveQueue.set('0', resolves);
         this.ws.send(JSON.stringify(item));
@@ -160,19 +242,27 @@ export default class WebSocketCmd {
     let item: CmdItem = {};
     item.id = '0';
     item.type = 'cmd';
-    item.value = 'join_app/' + appGroupID + '/' + this.appType + '/' + this.mac;
+    item.value =
+      'join_app/' +
+      appGroupID +
+      '/' +
+      this.appType +
+      '/' +
+      this.deviceName +
+      '/' +
+      this.mac;
     item.timeout = 5000;
     if (!this.isConnected) {
       return false;
     } else {
-      return new Promise<boolean>((resolve) => {
+      return new Promise<boolean>((resolve, reject) => {
         if (!this.ws) {
           resolve(false);
           return;
         }
         const resolves: CmdResolveReject = {
           _resolve: resolve,
-          _reject: undefined,
+          _reject: reject,
         };
         this.cmdResolveQueue.set('0', resolves);
         this.currentCmd = item;
@@ -224,9 +314,13 @@ export default class WebSocketCmd {
     });
   }
 
+  //////////////////////////////////////////////////////////////////////////////////
+
   private onTimeOut() {
     this.cancelCurrentCmd();
-    this.sendWaitingCmd();
+    if (this.hasInited) {
+      this.sendWaitingCmd();
+    }
   }
 
   private handleMessage(msg: string) {
@@ -245,8 +339,6 @@ export default class WebSocketCmd {
         this.appGroupID = result.value;
         console.log('register app group success: ' + this.appGroupID);
         resolve?._resolve(true);
-
-        this.sendWaitingBoardCast();
       } else {
         resolve?._resolve(false);
       }
@@ -259,7 +351,10 @@ export default class WebSocketCmd {
       }
     }
     //send waiting commands
-    this.sendWaitingCmd();
+    if (this.hasInited) {
+      this.sendWaitingBoardCast(false);
+      this.sendWaitingCmd();
+    }
   }
 
   private onClose(msg?: string) {
@@ -271,14 +366,18 @@ export default class WebSocketCmd {
       this.cmdTimeoutTimer = undefined;
     }
     this.purgeCmds();
+    this.sendWaitingBoardCast(true);
   }
 
-  private sendWaitingBoardCast() {
-    this.boradCastWaitingQueue.forEach((cmdItem) => {
-      if (this.ws && this.hasInited) {
-        this.ws.send(JSON.stringify(cmdItem));
-      }
-    });
+  private sendWaitingBoardCast(isPurge: boolean) {
+    if (!isPurge) {
+      this.boradCastWaitingQueue.forEach((cmdItem) => {
+        if (this.ws && this.hasInited) {
+          this.ws.send(JSON.stringify(cmdItem));
+        }
+      });
+    }
+
     this.boradCastWaitingQueue = [];
   }
 
