@@ -13,6 +13,7 @@
 #import <sensor/defines.h>
 
 @interface DeviceInfo : NSObject
+@property (atomic, assign) int MTUSize;
 @property (atomic, strong) NSString* deviceName;
 @property (atomic, strong) NSString* modelName;
 @property (atomic, strong) NSString* hardwareVersion;
@@ -64,6 +65,7 @@
 @property (atomic, assign, readonly) bool hasEEG;
 @property (atomic, assign, readonly) bool hasECG;
 @property (atomic, assign, readonly) bool hasInit;
+@property (atomic, assign, readonly) bool isMTUFine;
 @property (atomic, assign, readonly) int EEGChannelCount;
 @property (atomic, assign, readonly) int ECGChannelCount;
 @property (atomic, assign, readonly) int AccChannelCount;
@@ -80,9 +82,9 @@
 - (void)initEEG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initECG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initIMU:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
-- (void)initDataTransfer:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)initDataTransfer:(BOOL)isGetFeature  timeout:(NSTimeInterval)timeout completion:(void (^)(int flag))completionHandler;
 - (void)getBattery:(NSTimeInterval)timeout completion:(void (^)(int battery))completionHandler;
-- (void)getDeviceInfo:(NSTimeInterval)timeout completion:(void (^)(DeviceInfo* deviceInfo))completionHandler;
+- (void)getDeviceInfo:(BOOL)onlyMTU timeout:(NSTimeInterval)timeout completion:(void (^)(DeviceInfo* deviceInfo))completionHandler;
 - (void)startDataNotification:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)stopDataNotification:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 

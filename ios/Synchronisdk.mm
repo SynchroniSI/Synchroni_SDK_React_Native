@@ -216,7 +216,7 @@ RCT_EXPORT_MODULE()
     resolve(@(0));
 }
 
--(void)_initDataTransfer:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+-(void)_initDataTransfer:(NSString*_Nonnull)deviceMac isGetFeature:(NSNumber*_Nonnull)isGetFeature resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
     if (dataCtx){
@@ -224,9 +224,10 @@ RCT_EXPORT_MODULE()
             resolve(@(FALSE));
             return;
         }
-        [dataCtx.profile initDataTransfer:TIMEOUT completion:^(BOOL success) {
-            resolve(@(success));
+        [dataCtx.profile initDataTransfer:[isGetFeature boolValue] timeout:TIMEOUT completion:^(int flag) {
+            resolve(@(flag));
         }];
+
         return;
     }
     resolve(@(FALSE));
@@ -248,7 +249,7 @@ RCT_EXPORT_MODULE()
     resolve(@(FALSE));
 }
 
--(void)_getDeviceInfo:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+-(void)_getDeviceInfo:(NSString*_Nonnull)deviceMac onlyMTU:(NSNumber*_Nonnull)onlyMTU resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
     if (dataCtx){
@@ -256,9 +257,15 @@ RCT_EXPORT_MODULE()
             reject(@"getDeviceInfo", @"device not connected", nil);
             return;
         }
-        [dataCtx.profile getDeviceInfo:TIMEOUT completion:^(DeviceInfo* version) {
-            NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:version.deviceName, @"DeviceName", version.modelName, @"ModelName", version.hardwareVersion, @"HardwareVersion", version.firmwareVersion, @"FirmwareVersion", nil];
-            resolve(result);
+        [dataCtx.profile getDeviceInfo:[onlyMTU boolValue] timeout:TIMEOUT completion:^(DeviceInfo *version) {
+            if ([onlyMTU boolValue]){
+                NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:@(version.MTUSize), @"MTUSize", nil];
+                resolve(result);
+            }else{
+                NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:@(version.MTUSize), @"MTUSize", version.deviceName, @"DeviceName", version.modelName, @"ModelName", version.hardwareVersion, @"HardwareVersion", version.firmwareVersion, @"FirmwareVersion", nil];
+                resolve(result);
+            }
+
         }];
         return;
     }
@@ -360,9 +367,10 @@ packageSampleCount:(double)packageSampleCount
 }
 
 - (void)initDataTransfer:(NSString *)deviceMac
+            isGetFeature:(BOOL)isGetFeature
                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject{
-    [self _initDataTransfer:deviceMac resolve:resolve reject:reject];
+    [self _initDataTransfer:deviceMac isGetFeature:@(isGetFeature) resolve:resolve reject:reject];
 }
 
 - (void)getBatteryLevel:(NSString *)deviceMac
@@ -371,10 +379,10 @@ packageSampleCount:(double)packageSampleCount
     [self _getBatteryLevel:deviceMac resolve:resolve reject:reject];
 }
 
-- (void)getDeviceInfo:(NSString *)deviceMac
+- (void)getDeviceInfo:(NSString *)deviceMac onlyMTU:(BOOL)onlyMTU
                              resolve:(RCTPromiseResolveBlock)resolve
                               reject:(RCTPromiseRejectBlock)reject{
-    [self _getDeviceInfo:deviceMac resolve:resolve reject:reject];
+    [self _getDeviceInfo:deviceMac onlyMTU:@(onlyMTU) resolve:resolve reject:reject];
 }
 
 - (NSString *)getDeviceState:(NSString*)deviceMac {
@@ -456,9 +464,9 @@ RCT_EXPORT_METHOD(initIMU:(NSString*_Nonnull)deviceMac packageSampleCount:(NSNum
     [self _initIMU:deviceMac  packageSampleCount:[packageSampleCount intValue] resolve:resolve reject:reject];
 }
 
-RCT_EXPORT_METHOD(initDataTransfer:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(initDataTransfer:(NSString*_Nonnull)deviceMac isGetFeature:(NSNumber*_Nonnull)isGetFeature resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
     
-    [self _initDataTransfer:deviceMac  resolve:resolve reject:reject];
+    [self _initDataTransfer:deviceMac isGetFeature:isGetFeature resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(getBatteryLevel:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject){
@@ -466,9 +474,9 @@ RCT_EXPORT_METHOD(getBatteryLevel:(NSString*_Nonnull)deviceMac resolve:(RCTPromi
     [self _getBatteryLevel:deviceMac resolve:resolve reject:reject];
 }
 
-RCT_EXPORT_METHOD(getDeviceInfo:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(getDeviceInfo:(NSString*_Nonnull)deviceMac onlyMTU:(NSNumber*_Nonnull)onlyMTU resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
     
-    [self _getDeviceInfo:deviceMac resolve:resolve reject:reject];
+    [self _getDeviceInfo:deviceMac onlyMTU:onlyMTU resolve:resolve reject:reject];
 }
 
 RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
