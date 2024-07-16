@@ -14,7 +14,7 @@
 		</data>
 		<key>Headers/defines.h</key>
 		<data>
-		rU8/2ZvOEUZxbv5ctjwe2xRFAH4=
+		Y4CFp0W8d/GRfQfAHBIx1PY2BoQ=
 		</data>
 		<key>Headers/sensor.h</key>
 		<data>
@@ -22,7 +22,7 @@
 		</data>
 		<key>Headers/sensorProfile.h</key>
 		<data>
-		BxGQ9Xp2611P0HL8pWzxqhJECto=
+		YzhGN4b2E2AxN2tdVY+9WBg4mzg=
 		</data>
 		<key>Info.plist</key>
 		<data>
@@ -61,11 +61,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			rU8/2ZvOEUZxbv5ctjwe2xRFAH4=
+			Y4CFp0W8d/GRfQfAHBIx1PY2BoQ=
 			</data>
 			<key>hash2</key>
 			<data>
-			0OpKYsljVNp93/GGp6f/aW3RQKwtsFg4Hq47AGzS70w=
+			pScFNTpfA8Ur40vgL8SmN8+wqPUwfU1ZgIyPi50vWRo=
 			</data>
 		</dict>
 		<key>Headers/sensor.h</key>
@@ -83,11 +83,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			BxGQ9Xp2611P0HL8pWzxqhJECto=
+			YzhGN4b2E2AxN2tdVY+9WBg4mzg=
 			</data>
 			<key>hash2</key>
 			<data>
-			HgZKpvhFZfN16ANielKjoeDpv+BvnwU538R6UNES2kk=
+			hBSB7Nw1UVXKGuQe7+mJlE6nhdzV6JDh6MDXbyGcDo4=
 			</data>
 		</dict>
 		<key>Modules/module.modulemap</key>

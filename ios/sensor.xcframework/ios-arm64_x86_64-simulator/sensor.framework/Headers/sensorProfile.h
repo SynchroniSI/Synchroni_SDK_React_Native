@@ -41,6 +41,7 @@
 @property (atomic, assign) int channelCount;
 @property (atomic, assign) unsigned long long channelMask;
 @property (atomic, assign) int packageSampleCount;
+@property (atomic, assign) int minPackageSampleCount;
 @property (atomic, assign) double K;
 @property (atomic, strong) NSArray<NSArray<Sample*>*>* channelSamples;
 -(id)init;

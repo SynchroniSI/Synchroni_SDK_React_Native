@@ -50,6 +50,14 @@ typedef NS_ENUM(NSInteger, ResponseResult)  {
     RSP_CODE_PARTIAL_PACKET = 0xFF
 };
 
+typedef NS_ENUM(NSInteger, FeatureMaps) {
+    GFD_FEAT_EMG = 0x000002000,
+    GFD_FEAT_EEG = 0x000400000,
+    GFD_FEAT_ECG = 0x000800000,
+    GFD_FEAT_IMPEDANCE = 0x001000000,
+    GFD_FEAT_IMU = 0x002000000,
+};
+
 typedef NS_ENUM(NSInteger, DataNotifyFlags) {
     /// Data Notify All Off
     DNF_OFF = 0x00000000,
