@@ -51,6 +51,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     public int sampleRate;
     public int channelCount;
     public long channelMask;
+    public int minPackageSampleCount;
     public int packageSampleCount;
     public double K;
     static class Sample {
@@ -275,11 +276,13 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
 
   private void sendSensorData(ReactContext reactContext, SensorDataContext ctx, SensorData sensorData){
     Vector<Vector<SensorData.Sample>> channelSamples = sensorData.channelSamples;
-    sensorData.channelSamples = null;
-
+    if (channelSamples.size() > 0 && channelSamples.get(0).size() < sensorData.minPackageSampleCount){
+      return;
+    }
     if (channelSamples == null){
       return;
     }
+    sensorData.channelSamples = null;
 
     WritableMap result = Arguments.createMap();
     result.putString("deviceMac", ctx.deviceMac);
@@ -610,6 +613,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           data.sampleRate = sampleRate;
           data.resolutionBits = resolutionBits;
           data.channelMask = channelMask;
+          data.minPackageSampleCount = inPackageSampleCount;
           data.packageSampleCount = packageSampleCount;
           data.K = microVoltConversionK;
           data.clear();
@@ -623,6 +627,8 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                 ctx.sensorData[DATA_TYPE_EEG].channelCount = maxChannelCount;
                 ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_EEG);
 
+                promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
+                /*
                 if (inPackageSampleCount <= 0){
                   promise.resolve(ctx.sensorData[DATA_TYPE_EEG].channelCount);
                   return;
@@ -644,6 +650,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                     }
                   }
                 }, TIMEOUT);
+                 */
               }else{
                 Log.d(TAG, "Device State: " + "get  EEG Cap failed, resp code: " + resp);
                 promise.resolve(0);
@@ -686,6 +693,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           data.sampleRate = sampleRate;
           data.resolutionBits = resolutionBits;
           data.channelMask = channelMask;
+          data.minPackageSampleCount = inPackageSampleCount;
           data.packageSampleCount = packageSampleCount;
           data.K = microVoltConversionK;
           data.clear();
@@ -698,6 +706,8 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                 Log.d(TAG, "Device State: " + "get  ECG Cap succeeded");
                 ctx.sensorData[DATA_TYPE_ECG].channelCount = maxChannelCount;
                 ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_ECG);
+                promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
+                /*
                 if (inPackageSampleCount <= 0){
                   promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
                   return;
@@ -718,7 +728,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                       promise.resolve(ctx.sensorData[DATA_TYPE_ECG].channelCount);
                     }
                   }
-                }, TIMEOUT);
+                }, TIMEOUT);*/
               }else{
                 Log.d(TAG, "Device State: " + "get  ECG Cap failed, resp code: " + resp);
                 promise.resolve(0);
@@ -762,6 +772,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           data.resolutionBits = 16;
           data.channelMask = 255;
           data.channelCount = channelCount;
+          data.minPackageSampleCount = inPackageSampleCount;
           data.packageSampleCount = packageSampleCount;
           data.K = accK;
           data.clear();
@@ -773,12 +784,15 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           data2.resolutionBits = 16;
           data2.channelMask = 255;
           data2.channelCount = channelCount;
+          data2.minPackageSampleCount = inPackageSampleCount;
           data2.packageSampleCount = packageSampleCount;
           data2.K = gyroK;
           data2.clear();
           ctx.sensorData[DATA_TYPE_GYRO] = data2;
 
           ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_IMU);
+          promise.resolve(channelCount);
+          /*
           if (inPackageSampleCount <= 0){
             promise.resolve(channelCount);
             return;
@@ -800,9 +814,10 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
                 promise.resolve(ctx.sensorData[DATA_TYPE_ACC].channelCount);
               }
             }
-          }, TIMEOUT);
+          }, TIMEOUT);*/
         } else {
           Log.d(TAG, "Device State: " + "get  IMU Config failed, resp code: " + resp);
+          promise.resolve(0);
         }
       }
     }, TIMEOUT);

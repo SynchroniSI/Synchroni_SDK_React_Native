@@ -188,7 +188,7 @@ export default function App() {
   }
 
   //start / stop data transfer
-  function onDataSwitchButton() {
+  async function onDataSwitchButton() {
     const bledevice = getSelectedDevice();
     if (!bledevice) return;
     const sensor = SensorControllerInstance.getSensor(bledevice.Address);
@@ -201,10 +201,10 @@ export default function App() {
     if (sensor.deviceState === DeviceStateEx.Ready) {
       if (sensor.isDataTransfering) {
         setMessage('stop DataNotification');
-        sensor.stopDataNotification();
+        await sensor.stopDataNotification();
       } else {
         setMessage('start DataNotification');
-        sensor.startDataNotification();
+        await sensor.startDataNotification();
       }
     }
   }
@@ -214,7 +214,11 @@ export default function App() {
     if (data.channelSamples.length > 0) {
       if (data.channelSamples[0]!.length > 0) {
         samplesMsg =
-          'time: ' + ' index: ' + data.channelSamples[0]![0]!.sampleIndex;
+          'time: ' +
+          ' index: ' +
+          data.channelSamples[0]![0]!.sampleIndex +
+          ' count: ' +
+          data.channelSamples[0]?.length;
       }
 
       if (data.dataType === DataType.NTF_ACC) {
