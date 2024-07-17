@@ -276,48 +276,68 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
 
   private void sendSensorData(ReactContext reactContext, SensorDataContext ctx, SensorData sensorData){
     Vector<Vector<SensorData.Sample>> channelSamples = sensorData.channelSamples;
-    if (channelSamples.size() > 0 && channelSamples.get(0).size() < sensorData.minPackageSampleCount){
+    int realSampleCount = 0;
+    if (channelSamples.size() > 0){
+      realSampleCount = channelSamples.get(0).size();
+    }
+    if (realSampleCount < sensorData.minPackageSampleCount){
       return;
     }
     if (channelSamples == null){
       return;
     }
-    sensorData.channelSamples = null;
-
-    WritableMap result = Arguments.createMap();
-    result.putString("deviceMac", ctx.deviceMac);
-    result.putInt("dataType", sensorData.dataType);
-//    result.putInt("resolutionBits", sensorData.resolutionBits);
-    result.putInt("sampleRate", sensorData.sampleRate);
-    result.putInt("channelCount", sensorData.channelCount);
-//    result.putInt("channelMask", (int) sensorData.channelMask);
-    result.putInt("packageSampleCount", sensorData.packageSampleCount);
-//    result.putDouble("K", sensorData.K);
-
-    WritableArray channelsResult = Arguments.createArray();
-
-    for (int channelIndex = 0; channelIndex < sensorData.channelCount; ++channelIndex){
-      Vector<SensorData.Sample> samples = channelSamples.get(channelIndex);
-      WritableArray samplesResult = Arguments.createArray();
-
-      for (int sampleIndex = 0;sampleIndex < samples.size();++sampleIndex){
-        SensorData.Sample sample = samples.get(sampleIndex);
-        WritableMap sampleResult = Arguments.createMap();
-//        sampleResult.putInt("rawData", sample.rawData);
-        sampleResult.putInt("sampleIndex", sample.sampleIndex);
-//        sampleResult.putInt("channelIndex", sample.channelIndex);
-//        sampleResult.putInt("timeStampInMs", sample.timeStampInMs);
-        sampleResult.putDouble("data", sample.data);
-        sampleResult.putDouble("impedance", sample.impedance);
-        sampleResult.putDouble("saturation", sample.saturation);
-        sampleResult.putBoolean("isLost", sample.isLost);
-        samplesResult.pushMap(sampleResult);
+    int batchCount = realSampleCount / sensorData.minPackageSampleCount;
+    int leftSampleSize = realSampleCount - sensorData.minPackageSampleCount * batchCount;
+    if (leftSampleSize > 0){
+      Vector<Vector<SensorData.Sample>> leftChannelSamples = new Vector<>();
+      for (int channelIndex = 0; channelIndex < sensorData.channelCount; ++channelIndex){
+        Vector<SensorData.Sample> samples = channelSamples.get(channelIndex);
+        Vector<SensorData.Sample> leftSamples = new Vector<>(samples.subList(sensorData.minPackageSampleCount * batchCount, realSampleCount));
+        leftChannelSamples.add(leftSamples);
       }
-      channelsResult.pushArray(samplesResult);
+      sensorData.channelSamples = leftChannelSamples;
+    }else{
+      sensorData.channelSamples = null;
     }
 
-    result.putArray("channelSamples", channelsResult);
-    sendEvent(reactContext, "GOT_DATA", result);
+
+    for (int batchIndex = 0; batchIndex < batchCount;++batchIndex){
+
+      WritableMap result = Arguments.createMap();
+      result.putString("deviceMac", ctx.deviceMac);
+      result.putInt("dataType", sensorData.dataType);
+//    result.putInt("resolutionBits", sensorData.resolutionBits);
+      result.putInt("sampleRate", sensorData.sampleRate);
+      result.putInt("channelCount", sensorData.channelCount);
+//    result.putInt("channelMask", (int) sensorData.channelMask);
+      result.putInt("packageSampleCount", sensorData.minPackageSampleCount);
+//    result.putDouble("K", sensorData.K);
+      WritableArray channelsResult = Arguments.createArray();
+
+      for (int channelIndex = 0; channelIndex < sensorData.channelCount; ++channelIndex){
+        Vector<SensorData.Sample> samples = channelSamples.get(channelIndex);
+        WritableArray samplesResult = Arguments.createArray();
+
+        for (int sampleIndex = 0;sampleIndex < sensorData.minPackageSampleCount;++sampleIndex){
+          SensorData.Sample sample = samples.remove(0);
+          WritableMap sampleResult = Arguments.createMap();
+//        sampleResult.putInt("rawData", sample.rawData);
+          sampleResult.putInt("sampleIndex", sample.sampleIndex);
+//        sampleResult.putInt("channelIndex", sample.channelIndex);
+//        sampleResult.putInt("timeStampInMs", sample.timeStampInMs);
+          sampleResult.putDouble("data", sample.data);
+          sampleResult.putDouble("impedance", sample.impedance);
+          sampleResult.putDouble("saturation", sample.saturation);
+          sampleResult.putBoolean("isLost", sample.isLost);
+          samplesResult.pushMap(sampleResult);
+        }
+        channelsResult.pushArray(samplesResult);
+      }
+
+      result.putArray("channelSamples", channelsResult);
+      sendEvent(reactContext, "GOT_DATA", result);
+    }
+
   }
 
   private void initDataContext(String deviceMac){

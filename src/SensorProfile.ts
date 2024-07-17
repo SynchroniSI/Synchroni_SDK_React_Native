@@ -281,6 +281,14 @@ export default class SensorProfile {
       console.warn('Please init after connected');
       return false;
     }
+    if (packageSampleCount <= 0 || packageSampleCount >= 100) {
+      console.warn('Please keep 0 < packageSampleCount <= 100');
+      return false;
+    }
+    if (powerRefreshInterval <= 0) {
+      console.warn('Please keep 0 < powerRefreshInterval');
+      return false;
+    }
     if (this._hasInited) {
       return this._hasInited;
     }
