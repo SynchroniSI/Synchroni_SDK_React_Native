@@ -46,7 +46,7 @@
 @property (atomic, strong) NSArray<NSArray<Sample*>*>* channelSamples;
 -(id)init;
 -(void)clear;
--(SensorData*)flushSamples;
+-(NSArray<SensorData*>*)flushSamples;
 @end
 
 @protocol SensorProfileDelegate

@@ -549,7 +549,7 @@ RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
     [result setValue:@(self.sampleRate) forKey:@"sampleRate"];
     [result setValue:@(self.channelCount) forKey:@"channelCount"];
 //    [result setValue:@(self.channelMask) forKey:@"channelMask"];
-    [result setValue:@(self.packageSampleCount) forKey:@"packageSampleCount"];
+    [result setValue:@(self.minPackageSampleCount) forKey:@"packageSampleCount"];
 //    [result setValue:@(self.K) forKey:@"K"];
 
     NSMutableArray* channelsResult = [[NSMutableArray alloc] init];
