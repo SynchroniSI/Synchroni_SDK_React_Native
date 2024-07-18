@@ -588,9 +588,14 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       return;
     }
     ctx.clear();
-    boolean result = sensor.startDataNotification(dataCallback);
+    sensor.startDataNotification(dataCallback, new CommandResponseCallback() {
+      @Override
+      public void onSetCommandResponse(int resp) {
+        promise.resolve(sensor.isDataTransfering);
+      }
+    });
 
-    promise.resolve(result);
+
   }
   @ReactMethod
   @DoNotStrip
@@ -601,8 +606,12 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       return;
     }
     SensorProfile sensor = sensorScaner.getSensor(deviceMac);
-    boolean result = sensor.stopDataNotification();
-    promise.resolve(result);
+    sensor.stopDataNotification(new CommandResponseCallback() {
+      @Override
+      public void onSetCommandResponse(int resp) {
+        promise.resolve(!sensor.isDataTransfering);
+      }
+    });
   }
   @ReactMethod
   @DoNotStrip
