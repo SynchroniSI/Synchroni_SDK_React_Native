@@ -15,6 +15,7 @@ export enum DataType {
   NTF_GYRO = 0x2,
   NTF_EEG = 0x10,
   NTF_ECG = 0x11,
+  NTF_BRTH = 0x15,
 }
 
 export type BLEDevice = {
@@ -28,10 +29,12 @@ export type DeviceInfo = {
   ModelName: string;
   HardwareVersion: string;
   FirmwareVersion: string;
+  EmgChannelCount: number;
   EegChannelCount: number;
   EcgChannelCount: number;
   AccChannelCount: number;
   GyroChannelCount: number;
+  BrthChannelCount: number;
   MTUSize: number;
 };
 
@@ -79,6 +82,7 @@ export interface Spec extends TurboModule {
   initEEG(deviceMac: string, packageSampleCount: number): Promise<number>;
   initECG(deviceMac: string, packageSampleCount: number): Promise<number>;
   initIMU(deviceMac: string, packageSampleCount: number): Promise<number>;
+  initBRTH(deviceMac: string, packageSampleCount: number): Promise<number>;
   initDataTransfer(deviceMac: string, isGetFeature: boolean): Promise<number>;
   getBatteryLevel(deviceMac: string): Promise<number>;
   getDeviceInfo(deviceMac: string, onlyMTU: boolean): Promise<DeviceInfo>;

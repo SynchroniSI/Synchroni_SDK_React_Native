@@ -256,6 +256,8 @@ export default class SensorProfile {
             this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
             this._deviceInfo.AccChannelCount = this._IMUChannelCount;
             this._deviceInfo.GyroChannelCount = this._IMUChannelCount;
+            this._deviceInfo.BrthChannelCount = this._BRTHChannelCount;
+            this._deviceInfo.EmgChannelCount = this._EMGChannelCount;
           }
         })
         .catch((error) => {
@@ -337,9 +339,11 @@ export default class SensorProfile {
 
   private _featureMap: number;
   private _notifyFlag: number;
+  private _EMGChannelCount: number;
   private _EEGChannelCount: number;
   private _ECGChannelCount: number;
   private _IMUChannelCount: number;
+  private _BRTHChannelCount: number;
   private _isConnecting: boolean;
   private _isDisconnecting: boolean;
   private _hasInited: boolean;
@@ -394,6 +398,8 @@ export default class SensorProfile {
     this._EEGChannelCount = 0;
     this._ECGChannelCount = 0;
     this._IMUChannelCount = 0;
+    this._BRTHChannelCount = 0;
+    this._EMGChannelCount = 0;
     this._deviceInfo = undefined;
 
     if (!Synchronisdk.initSensor(device.Address)) {
@@ -421,6 +427,8 @@ export default class SensorProfile {
     this._EEGChannelCount = 0;
     this._ECGChannelCount = 0;
     this._IMUChannelCount = 0;
+    this._BRTHChannelCount = 0;
+    this._EMGChannelCount = 0;
     this._deviceInfo = undefined;
 
     if (this._powerTimer) {
@@ -634,12 +642,34 @@ export default class SensorProfile {
       }
     }
 
+    /*eslint no-bitwise: ["error", { "allow": ["&"] }] */
+    if (this._featureMap & 0x008000000) {
+      for (index = 0; index < RETRY_COUNT; ++index) {
+        console.log('init brth');
+        try {
+          this._BRTHChannelCount = await this._initBRTH(packageSampleCount);
+          if (this._BRTHChannelCount > 0) {
+            break;
+          }
+        } catch (error) {
+          this._BRTHChannelCount = 0;
+        }
+      }
+    }
+
     this._deviceInfo.EegChannelCount = this._EEGChannelCount;
     this._deviceInfo.EcgChannelCount = this._ECGChannelCount;
     this._deviceInfo.AccChannelCount = this._IMUChannelCount;
     this._deviceInfo.GyroChannelCount = this._IMUChannelCount;
+    this._deviceInfo.BrthChannelCount = this._BRTHChannelCount;
+    this._deviceInfo.EmgChannelCount = this._EMGChannelCount;
 
-    if (this._EEGChannelCount === 0 && this._ECGChannelCount === 0) {
+    if (
+      this._EEGChannelCount === 0 &&
+      this._ECGChannelCount === 0 &&
+      this._BRTHChannelCount === 0 &&
+      this._EMGChannelCount === 0
+    ) {
       this._notifyFlag = 0;
       this._hasInited = false;
       return false;
@@ -689,6 +719,10 @@ export default class SensorProfile {
 
   private async _initIMU(packageSampleCount: number): Promise<number> {
     return Synchronisdk.initIMU(this._device.Address, packageSampleCount);
+  }
+
+  private async _initBRTH(packageSampleCount: number): Promise<number> {
+    return Synchronisdk.initBRTH(this._device.Address, packageSampleCount);
   }
 
   private async _initDataTransfer(isGetFeature: boolean): Promise<number> {

@@ -163,7 +163,10 @@ export default function App() {
       const dataCtx = dataCtxMap.current!.get(sensor.BLEDevice.Address)!;
       if (data.dataType === DataType.NTF_EEG) {
         dataCtx.lastEEG = data;
-      } else if (data.dataType === DataType.NTF_ECG) {
+      } else if (
+        data.dataType === DataType.NTF_ECG ||
+        data.dataType === DataType.NTF_BRTH
+      ) {
         dataCtx.lastECG = data;
       } else if (data.dataType === DataType.NTF_ACC) {
         dataCtx.lastACC = data;
@@ -267,7 +270,10 @@ export default function App() {
         data.channelSamples[0]!.length;
       setEEGInfo(msg);
       setEEGSample(samplesMsg);
-    } else if (data.dataType === DataType.NTF_ECG) {
+    } else if (
+      data.dataType === DataType.NTF_ECG ||
+      data.dataType === DataType.NTF_BRTH
+    ) {
       const msg =
         'channel count:' +
         data.channelCount +
@@ -285,7 +291,7 @@ export default function App() {
   function updateDeviceList(devices: BLEDevice[]) {
     let filterDevices = devices.filter((item) => {
       //filter OB serials
-      return item.Name.startsWith('OB');
+      return item.Name.startsWith('OB') || item.Name.startsWith('Sync');
     });
 
     let connectedDevices = SensorControllerInstance.getConnectedDevices();

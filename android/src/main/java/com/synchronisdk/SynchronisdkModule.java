@@ -37,7 +37,8 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   static final int DATA_TYPE_ECG = 1;
   static final int DATA_TYPE_ACC = 2;
   static final int DATA_TYPE_GYRO = 3;
-  static final int DATA_TYPE_COUNT = 4;
+  static final int DATA_TYPE_BRTH = 4;
+  static final int DATA_TYPE_COUNT = 5;
   static final int TIMEOUT = 50000;
   private DataNotificationCallback dataCallback;
 
@@ -98,6 +99,9 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     }
     public boolean hasIMU(){
       return (featureMap & SensorProfile.FeatureMapFlags.GFD_FEAT_IMU) != 0;
+    }
+    public boolean hasBrth(){
+      return (featureMap & SensorProfile.FeatureMapFlags.GFD_FEAT_BRTH) != 0;
     }
     public SensorDataContext(String _deviceMac){
       deviceMac = _deviceMac;
@@ -383,6 +387,10 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
           data[0] == SensorProfile.NotifDataType.NTF_ECG ){
           int dataType = data[0] - SensorProfile.NotifDataType.NTF_EEG;
           SensorData sensorData = ctx.sensorData[dataType];
+          if (checkReadSamples(data, ctx, sensorData, 3,0))
+            sendSensorData(context, ctx, sensorData);
+        }else if (data[0] == SensorProfile.NotifDataType.NTF_BRTH){
+          SensorData sensorData = ctx.sensorData[DATA_TYPE_BRTH];
           if (checkReadSamples(data, ctx, sensorData, 3,0))
             sendSensorData(context, ctx, sensorData);
         }else if (data[0] == SensorProfile.NotifDataType.NTF_IMU){
@@ -850,6 +858,50 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
         }
       }
     }, TIMEOUT);
+  }
+  @ReactMethod
+  @DoNotStrip
+  @Override
+  public void initBRTH(String deviceMac, double packageSampleCount, Promise promise){
+    final int inPackageSampleCount = (int) packageSampleCount;
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("initBrth","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    SensorDataContext ctx = sensorDataContextMap.get(deviceMac);
+    if (ctx == null) {
+      promise.reject("initBrth","invalid device");
+      return;
+    }
+    if (!ctx.hasBrth()){
+      promise.reject("initBrth","not support");
+      return;
+    }
+    sensor.getBrthDataConfig(new CommandResponseCallback() {
+      @Override
+      public void onGetBrthDataConfig(int resp, int sampleRate, long channelMask, int packageSampleCount, int resolutionBits, double microVoltConversionK) {
+        if (resp == SensorProfile.ResponseResult.RSP_CODE_SUCCESS) {
+          Log.d(TAG, "Device State: " + "get  Brth Config succeeded");
+          SensorData data = new SensorData();
+          data.dataType = SensorProfile.NotifDataType.NTF_BRTH;
+          data.sampleRate = sampleRate;
+          data.resolutionBits = resolutionBits;
+          data.channelMask = channelMask;
+          data.channelCount = 1;
+          data.minPackageSampleCount = inPackageSampleCount;
+          data.packageSampleCount = packageSampleCount;
+          data.K = microVoltConversionK;
+          data.clear();
+          ctx.sensorData[DATA_TYPE_BRTH] = data;
+          ctx.notifyDataFlag |= (SensorProfile.DataNotifFlags.DNF_BRTH);
+          promise.resolve(1);
+        } else {
+          Log.d(TAG, "Device State: " + "get  Brth Config failed, resp code: " + resp);
+          promise.resolve(0);
+        }
+      }
+    },TIMEOUT);
   }
   @ReactMethod
   @DoNotStrip
