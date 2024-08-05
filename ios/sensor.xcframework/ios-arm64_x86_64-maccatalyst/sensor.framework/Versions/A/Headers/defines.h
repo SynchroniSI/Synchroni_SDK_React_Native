@@ -56,6 +56,8 @@ typedef NS_ENUM(NSInteger, FeatureMaps) {
     GFD_FEAT_ECG = 0x000800000,
     GFD_FEAT_IMPEDANCE = 0x001000000,
     GFD_FEAT_IMU = 0x002000000,
+    GFD_FEAT_ADS = 0x004000000,
+    GFD_FEAT_BRTH = 0x008000000,
 };
 
 typedef NS_ENUM(NSInteger, DataNotifyFlags) {
@@ -105,7 +107,10 @@ typedef NS_ENUM(NSInteger, DataNotifyFlags) {
     DNF_IMPEDANCE = 0x00040000,
     
     DNF_IMU = 0x00080000,
-
+    
+    DNF_ADS = 0x00100000,
+    
+    DNF_BRTH = 0x00200000,
     /// Data Notify All On
     DNF_ALL = 0xFFFFFFFF,
 };
@@ -131,6 +136,8 @@ typedef NS_ENUM(NSInteger, NotifyDataType)  {
     NTF_ECG,
     NTF_IMPEDANCE,
     NTF_IMU,
+    NTF_ADS,
+    NTF_BRTH,
     NTF_DATA_TYPE_MAX,
     NTF_PARTIAL_DATA = 0xFF
 };

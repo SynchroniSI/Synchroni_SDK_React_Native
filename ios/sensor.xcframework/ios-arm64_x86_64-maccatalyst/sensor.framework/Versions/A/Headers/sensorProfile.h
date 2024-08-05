@@ -69,6 +69,7 @@
 @property (atomic, assign, readonly) bool isMTUFine;
 @property (atomic, assign, readonly) int EEGChannelCount;
 @property (atomic, assign, readonly) int ECGChannelCount;
+@property (atomic, assign, readonly) int BRTHChannelCount;
 @property (atomic, assign, readonly) int AccChannelCount;
 @property (atomic, assign, readonly) int GyroChannelCount;
 @property (atomic, assign, readonly) bool hasStartDataNotification;
@@ -83,6 +84,7 @@
 - (void)initEEG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initECG:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initIMU:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
+- (void)initBRTH:(int)packageCount timeout:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)initDataTransfer:(BOOL)isGetFeature  timeout:(NSTimeInterval)timeout completion:(void (^)(int flag))completionHandler;
 - (void)getBattery:(NSTimeInterval)timeout completion:(void (^)(int battery))completionHandler;
 - (void)getDeviceInfo:(BOOL)onlyMTU timeout:(NSTimeInterval)timeout completion:(void (^)(DeviceInfo* deviceInfo))completionHandler;
