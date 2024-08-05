@@ -291,7 +291,7 @@ export default function App() {
   function updateDeviceList(devices: BLEDevice[]) {
     let filterDevices = devices.filter((item) => {
       //filter OB serials
-      return item.Name.startsWith('OB') || item.Name.startsWith('Sync');
+      return item.Name.startsWith('OB') || item.Name.startsWith('SYNC');
     });
 
     let connectedDevices = SensorControllerInstance.getConnectedDevices();
