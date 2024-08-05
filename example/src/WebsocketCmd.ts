@@ -333,11 +333,16 @@ export default class WebSocketCmd {
     const resolve = this.cmdResolveQueue.get(result.id);
     this.cmdResolveQueue.delete(result.id);
 
+    if (this.cmdTimeoutTimer) {
+      clearTimeout(this.cmdTimeoutTimer);
+      this.cmdTimeoutTimer = undefined;
+    }
+
     if (result.id === '0') {
       //register or join
       if (result.type === 'result_ok' && result.value) {
         this.appGroupID = result.value;
-        console.log('register app group success: ' + this.appGroupID);
+        console.log('register or join app group success: ' + this.appGroupID);
         resolve?._resolve(true);
       } else {
         resolve?._resolve(false);
