@@ -125,11 +125,11 @@ export default function App() {
             ' power: ' +
             (await connectedSensor.batteryPower())
         );
+        await connectedSensor.disconnect();
+        console.log(
+          'device: ' + connectedSensor.BLEDevice.Name + ' disconnected'
+        );
       }
-      await connectedSensor.disconnect();
-      console.log(
-        'device: ' + connectedSensor.BLEDevice.Name + ' disconnected'
-      );
     });
   }
 
