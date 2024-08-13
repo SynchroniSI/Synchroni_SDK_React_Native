@@ -23,6 +23,10 @@ export default class SensorController {
     return Synchronisdk.isEnable();
   }
 
+  public get hasDeviceCallback(): boolean {
+    return this.onDevice !== undefined;
+  }
+
   public set onDeviceCallback(
     callback: (deviceList: Array<BLEDevice>) => void
   ) {
@@ -65,7 +69,10 @@ export default class SensorController {
     return this._stopScan();
   };
 
-  public requireSensor = (device: BLEDevice): SensorProfile => {
+  public requireSensor = (device: BLEDevice): SensorProfile | undefined => {
+    if (!device || !device.Address || device.Address === '') {
+      return undefined;
+    }
     const deviceMac = device.Address;
     if (this.sensorProfileMap.has(deviceMac)) {
       return this.sensorProfileMap.get(deviceMac)!;

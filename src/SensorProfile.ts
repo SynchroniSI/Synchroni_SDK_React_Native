@@ -559,12 +559,12 @@ export default class SensorProfile {
       return false;
     }
 
-    console.log(this._featureMap);
+    // console.log(this._featureMap);
 
     for (index = 0; index < RETRY_COUNT; ++index) {
       try {
         this._deviceInfo = await this._getDeviceInfo(true);
-        console.log(JSON.stringify(this._deviceInfo));
+        // console.log(JSON.stringify(this._deviceInfo));
         if (this._deviceInfo.MTUSize >= 80) {
           break;
         }

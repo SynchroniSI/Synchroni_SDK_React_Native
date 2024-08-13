@@ -49,9 +49,11 @@ import {
 const SensorControllerInstance = SensorController.Instance;
 
 //register scan listener
-SensorControllerInstance.onDeviceCallback = (devices: BLEDevice[]) =>{
-  //return all devices doesn't connected 
-};
+if (!SensorControllerInstance.hasDeviceCallback){
+  SensorControllerInstance.onDeviceCallback = (devices: BLEDevice[]) =>{
+    //return all devices doesn't connected 
+  };
+}
 
 ```
 
@@ -76,10 +78,10 @@ public get isScaning(): boolean
 ```js
 public get isEnable(): boolean
 ```
-## 6. Create SensorProfile
+## 6. Create SensorProfile, can be undefined
 
 ```js
-public requireSensor(device: BLEDevice): SensorProfile
+public requireSensor(device: BLEDevice): SensorProfile | undefined
 ```
 
 ## 7. Get SensorProfile, can be undefined
@@ -198,8 +200,11 @@ Data type list：
 
 ```js
 export enum DataType {
+  NTF_ACC = 0x1,
+  NTF_GYRO = 0x2,
   NTF_EEG = 0x10,
   NTF_ECG = 0x11,
+  NTF_BRTH = 0x15,
 }
 ```
 
@@ -244,3 +249,5 @@ Please call after device in 'Ready' state, power from 0 - 100, -1 is invalid
 ```js
 public async batteryPower(): Promise<number>
 ```
+
+Please check SimpleTest function in App
