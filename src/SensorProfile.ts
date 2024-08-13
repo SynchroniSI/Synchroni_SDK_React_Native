@@ -66,7 +66,10 @@ export default class SensorProfile {
 
   ////////////////////////////////////////////
   public connect = async (): Promise<boolean> => {
-    if (this.deviceState === DeviceStateEx.Ready) {
+    if (
+      this.deviceState === DeviceStateEx.Ready ||
+      this.deviceState === DeviceStateEx.Connected
+    ) {
       return true;
     }
 
@@ -442,6 +445,10 @@ export default class SensorProfile {
       this._onDisconnect(true);
     } else if (newstate === DeviceStateEx.Ready) {
       this._onConnect(true);
+    } else if (newstate === DeviceStateEx.Connected && !this._isConnecting) {
+      //for connect timeout
+      this._onConnect(false);
+      return;
     }
     if (this._onStateChange) {
       this._onStateChange(this, newstate);
@@ -506,6 +513,7 @@ export default class SensorProfile {
     if (this._connectTick > -1) {
       const delta = new Date().getTime() - this._connectTick;
       if (delta >= TIMEOUT) {
+        // console.log("CONNECT TIMEOUT");
         if (this.deviceState === DeviceStateEx.Ready) {
           this._onConnect(true);
         } else {
@@ -517,6 +525,7 @@ export default class SensorProfile {
     if (this._disConnectTick > -1) {
       const delta = new Date().getTime() - this._disConnectTick;
       if (delta >= TIMEOUT) {
+        // console.log("DISCONNECT TIMEOUT");
         if (this.deviceState === DeviceStateEx.Disconnected) {
           this._onDisconnect(true);
         } else {

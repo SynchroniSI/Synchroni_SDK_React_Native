@@ -120,6 +120,7 @@ export default class SensorController {
     this.nativeEventEmitter.addListener(
       'STATE_CHANGED',
       (state: EventResult) => {
+        // console.log(JSON.stringify(state));
         this.dispatchEvent('STATE_CHANGED', state);
       }
     );
