@@ -35,6 +35,66 @@ export default function App() {
       await SensorControllerInstance.startScan(6000);
     }
 
+    if (!SensorControllerInstance.hasDeviceCallback) {
+      SensorControllerInstance.onDeviceCallback = async (
+        devices: BLEDevice[]
+      ) => {
+        console.log('stop scan');
+        await SensorControllerInstance.stopScan();
+
+        let filterDevices = devices.filter((item) => {
+          return item.Name.startsWith('OB') || item.Name.startsWith('SYNC');
+        });
+        if (!filterDevices || filterDevices.length < 0) return;
+
+        const sensor = SensorControllerInstance.requireSensor(
+          filterDevices[0]!
+        );
+        if (!sensor) {
+          return;
+        }
+        if (sensor.deviceState !== DeviceStateEx.Ready) {
+          console.log('connecting' + sensor.BLEDevice.Address);
+          if (!(await sensor.connect())) {
+            console.error(
+              'connect device: ' + sensor.BLEDevice.Name + ' failed'
+            );
+            return;
+          }
+        }
+        if (!sensor.hasInited) {
+          sensor.onDataCallback = (
+            _sensor: SensorProfile,
+            data: SensorData
+          ) => {
+            if (
+              data.dataType === DataType.NTF_EEG ||
+              data.dataType === DataType.NTF_ECG ||
+              data.dataType === DataType.NTF_BRTH ||
+              data.dataType === DataType.NTF_ACC ||
+              data.dataType === DataType.NTF_GYRO
+            ) {
+              // console.log("got data for sensor: " + _sensor.BLEDevice.Name + " data type: " + data.dataType);
+            }
+          };
+        }
+
+        if (!(await sensor.init(1, 60000))) {
+          console.error('init device: ' + sensor.BLEDevice.Name + ' failed');
+          return;
+        }
+        console.log('deviceInfo: ' + JSON.stringify(await sensor.deviceInfo()));
+        if (!(await sensor.startDataNotification())) {
+          console.error(
+            'start data transfer with device: ' +
+              sensor.BLEDevice.Name +
+              ' failed'
+          );
+          return;
+        }
+      };
+    }
+
     const connectedSensors = SensorControllerInstance.getConnectedSensors();
     connectedSensors.forEach(async (connectedSensor) => {
       if (connectedSensor.hasInited) {
@@ -46,60 +106,6 @@ export default function App() {
         );
       }
     });
-
-    if (SensorControllerInstance.hasDeviceCallback) {
-      return;
-    }
-    SensorControllerInstance.onDeviceCallback = async (
-      devices: BLEDevice[]
-    ) => {
-      console.log('stop scan');
-      await SensorControllerInstance.stopScan();
-
-      let filterDevices = devices.filter((item) => {
-        return item.Name.startsWith('OB') || item.Name.startsWith('SYNC');
-      });
-      if (!filterDevices || filterDevices.length < 0) return;
-
-      const sensor = SensorControllerInstance.requireSensor(filterDevices[0]!);
-      if (!sensor) {
-        return;
-      }
-      if (sensor.deviceState !== DeviceStateEx.Ready) {
-        console.log('connecting' + sensor.BLEDevice.Address);
-        if (!(await sensor.connect())) {
-          console.error('connect device: ' + sensor.BLEDevice.Name + ' failed');
-          return;
-        }
-      }
-      if (!sensor.hasInited) {
-        sensor.onDataCallback = (_sensor: SensorProfile, data: SensorData) => {
-          if (
-            data.dataType === DataType.NTF_EEG ||
-            data.dataType === DataType.NTF_ECG ||
-            data.dataType === DataType.NTF_BRTH ||
-            data.dataType === DataType.NTF_ACC ||
-            data.dataType === DataType.NTF_GYRO
-          ) {
-            // console.log("got data for sensor: " + _sensor.BLEDevice.Name + " data type: " + data.dataType);
-          }
-        };
-      }
-
-      if (!(await sensor.init(1, 60000))) {
-        console.error('init device: ' + sensor.BLEDevice.Name + ' failed');
-        return;
-      }
-      console.log('deviceInfo: ' + JSON.stringify(await sensor.deviceInfo()));
-      if (!(await sensor.startDataNotification())) {
-        console.error(
-          'start data transfer with device: ' +
-            sensor.BLEDevice.Name +
-            ' failed'
-        );
-        return;
-      }
-    };
   }
 
   const [device, setDevice] = React.useState<string>();
