@@ -69,7 +69,7 @@ export default function App() {
           }
           //init & start data transfer
           if (!sensor.hasInited) {
-            if (!(await sensor.init(5, 60000))) {
+            if (!(await sensor.init(5, 5000))) {
               console.error(
                 'init device: ' + sensor.BLEDevice.Name + ' failed'
               );
@@ -110,6 +110,22 @@ export default function App() {
               if (_sensor.isDataTransfering) {
                 await _sensor.stopDataNotification();
               }
+            };
+
+            sensor.onPowerChanged = async (
+              _sensor: SensorProfile,
+              power: number
+            ) => {
+              console.log(
+                'connected sensor: ' +
+                  _sensor.BLEDevice.Name +
+                  ' power: ' +
+                  power
+              );
+              await _sensor.disconnect();
+              console.log(
+                'device: ' + _sensor.BLEDevice.Name + ' disconnected'
+              );
             };
           }
         });
