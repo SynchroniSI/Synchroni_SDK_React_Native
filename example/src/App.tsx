@@ -100,7 +100,7 @@ export default function App() {
                 data.dataType === DataType.NTF_GYRO
               ) {
                 console.log(
-                  'got data for sensor: ' +
+                  'got data from sensor: ' +
                     _sensor.BLEDevice.Name +
                     ' data type: ' +
                     data.dataType
@@ -123,9 +123,17 @@ export default function App() {
                   power
               );
               await _sensor.disconnect();
-              console.log(
-                'device: ' + _sensor.BLEDevice.Name + ' disconnected'
-              );
+            };
+
+            sensor.onStateChanged = (
+              _sensor: SensorProfile,
+              newstate: DeviceStateEx
+            ) => {
+              if (newstate === DeviceStateEx.Disconnected) {
+                console.log(
+                  'device: ' + _sensor.BLEDevice.Name + ' disconnected'
+                );
+              }
             };
           }
         });
@@ -142,9 +150,6 @@ export default function App() {
             (await connectedSensor.batteryPower())
         );
         await connectedSensor.disconnect();
-        console.log(
-          'device: ' + connectedSensor.BLEDevice.Name + ' disconnected'
-        );
       }
     });
   }
