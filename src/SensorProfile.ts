@@ -193,7 +193,7 @@ export default class SensorProfile {
           const pendings = this._stopDataNotificationQueue;
           this._stopDataNotificationQueue = [];
           pendings.forEach((promise) => {
-            promise(this._isDataTransfering);
+            promise(!this._isDataTransfering);
           });
         });
     });
