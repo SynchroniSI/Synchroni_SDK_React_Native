@@ -177,7 +177,7 @@ RCT_EXPORT_MODULE()
             return;
         }
         [dataCtx.profile initECG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
-            resolve(@(dataCtx.profile.ECGChannelCount));
+            resolve(@(dataCtx.profile.deviceInfo.ECGChannelCount));
         }];
         return;
     }
@@ -193,7 +193,7 @@ RCT_EXPORT_MODULE()
             return;
         }
         [dataCtx.profile initEEG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
-            resolve(@(dataCtx.profile.EEGChannelCount));
+            resolve(@(dataCtx.profile.deviceInfo.EEGChannelCount));
         }];
         return;
     }
@@ -209,7 +209,7 @@ RCT_EXPORT_MODULE()
             return;
         }
         [dataCtx.profile initIMU:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
-            resolve(@(dataCtx.profile.AccChannelCount));
+            resolve(@(dataCtx.profile.deviceInfo.AccChannelCount));
         }];
         return;
     }
@@ -225,7 +225,7 @@ RCT_EXPORT_MODULE()
             return;
         }
         [dataCtx.profile initBRTH:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
-            resolve(@(dataCtx.profile.BRTHChannelCount));
+            resolve(@(dataCtx.profile.deviceInfo.BRTHChannelCount));
         }];
         return;
     }
