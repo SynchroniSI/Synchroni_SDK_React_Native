@@ -93,7 +93,6 @@ const sensorProfile = SensorControllerInstance.getSensor(bleDevice);
 ## 8. Get Connected SensorProfiles
 
 ```js
-public SensorControllerInstance.getConnectedSensors(): SensorProfile[]
 const sensorProfiles/*SensorProfile[]*/ = SensorControllerInstance.getConnectedSensors();
 ```
 
