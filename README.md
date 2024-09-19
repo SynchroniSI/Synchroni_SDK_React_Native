@@ -130,21 +130,21 @@ sensorProfile.onDataCallback = (sensor: SensorProfile, data: SensorData) => {
 
 please await until connect return result
 ```js
-public async SensorProfile.connect(device: BLEDevice): Promise<boolean>
+public async sensorProfile.connect(device: BLEDevice): Promise<boolean>
 ```
 
 ## 3. Disconnect
 
 please await until disconnect return result
 ```js
-public async SensorProfile.disconnect(): Promise<boolean>
+public async sensorProfile.disconnect(): Promise<boolean>
 ```
 
 
 ## 4. Get device status
 
 ```js
-public get SensorProfile.connectionState(): DeviceStateEx
+public get sensorProfile.connectionState(): DeviceStateEx
 ```
 
 Please send command in 'Ready' state, should be after connect() return true
@@ -162,13 +162,13 @@ export enum DeviceStateEx {
 
 ## 5. Get BLE device of SensorProfile
 ```js
-public get SensorProfile.BLEDevice(): BLEDevice
+public get sensorProfile.BLEDevice(): BLEDevice
 ```
 
 ## 6. Get device info of SensorProfile
 Please call after device in 'Ready' state, return undefined if it's not connected
 ```js
-public async SensorProfile.deviceInfo(): Promise<DeviceInfo | undefined>
+public async sensorProfile.deviceInfo(): Promise<DeviceInfo | undefined>
 ```
 
 
@@ -176,7 +176,7 @@ public async SensorProfile.deviceInfo(): Promise<DeviceInfo | undefined>
 
 Please call after device in 'Ready' state, return true if init succeed
 ```js
-public async SensorProfile.init(packageSampleCount: number, powerRefreshInterval: number): Promise<boolean>
+public async sensorProfile.init(packageSampleCount: number, powerRefreshInterval: number): Promise<boolean>
 ```
 packageSampleCount:   set sample counts of SensorData.channelSamples in onDataCallback()
 powerRefreshInterval: callback period for onPowerChanged()
@@ -184,7 +184,7 @@ powerRefreshInterval: callback period for onPowerChanged()
 ## 8. Check if init data transfer succeed
 
 ```js
-public get SensorProfile.hasInited(): boolean
+public get sensorProfile.hasInited(): boolean
 ```
 
 
@@ -193,7 +193,7 @@ Please call if hasInited() return true
 ### 9.1 Start data transfer
 
 ```js
-public async SensorProfile.startDataNotification(): Promise<boolean>
+public async sensorProfile.startDataNotification(): Promise<boolean>
 ```
 
 Data type list：
@@ -235,19 +235,19 @@ For start data transfer, use `startDataNotification` to start. Process data in o
 ### 9.2 Stop data transfer
 
 ```js
-public async SensorProfile.stopDataNotification(): Promise<boolean>
+public async sensorProfile.stopDataNotification(): Promise<boolean>
 ```
 
 ### 9.3 Check if it's data transfering
 
 ```js
-public get SensorProfile.isDataTransfering(): boolean
+public get sensorProfile.isDataTransfering(): boolean
 ```
 
 ## 10. Get batter level
 Please call after device in 'Ready' state, power from 0 - 100, -1 is invalid
 ```js
-public async SensorProfile.batteryPower(): Promise<number>
+public async sensorProfile.batteryPower(): Promise<number>
 ```
 
 Please check SimpleTest function in App
