@@ -60,46 +60,46 @@ if (!SensorControllerInstance.hasDeviceCallback){
 ## 2. Start scan
 
 ```js
-public async SensorController.startScan(periodInMs: number): Promise<boolean>
+public async SensorControllerInstance.startScan(periodInMs: number): Promise<boolean>
 ```
 returns true if start scan success, periodInMS means onDeviceCallback will be called every periodInMS, minium is 6000ms
 
 ## 3. Stop scan
 
 ```js
-public async SensorController.stopScan(): Promise<void>
+public async SensorControllerInstance.stopScan(): Promise<void>
 ```
 ## 4. Check scaning
 ```js
-public get SensorController.isScaning(): boolean
+public get SensorControllerInstance.isScaning(): boolean
 ```
 
 ## 5. Check if bluetooth is enabled
 ```js
-public get SensorController.isEnable(): boolean
+public get SensorControllerInstance.isEnable(): boolean
 ```
 ## 6. Create SensorProfile, can be undefined
 
 ```js
-public SensorController.requireSensor(device: BLEDevice): SensorProfile | undefined
+public SensorControllerInstance.requireSensor(device: BLEDevice): SensorProfile | undefined
 ```
 
 ## 7. Get SensorProfile, can be undefined
 
 ```js
-public SensorController.getSensor(device: BLEDevice): SensorProfile | undefined
+public SensorControllerInstance.getSensor(device: BLEDevice): SensorProfile | undefined
 ```
 
 ## 8. Get Connected SensorProfiles
 
 ```js
-public SensorController.getConnectedSensors(): SensorProfile[]
+public SensorControllerInstance.getConnectedSensors(): SensorProfile[]
 ```
 
 ## 9. Get Connected BLE Devices
 
 ```js
-public SensorController.getConnectedDevices(): BLEDevice[]
+public SensorControllerInstance.getConnectedDevices(): BLEDevice[]
 ```
 
 # SensorProfile methods:
