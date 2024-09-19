@@ -60,7 +60,7 @@ if (!SensorControllerInstance.hasDeviceCallback){
 ## 2. Start scan
 
 ```js
-const success = SensorControllerInstance.startScan(6000/*periodInMs*/)
+const success = await SensorControllerInstance.startScan(6000/*periodInMs*/)
 ```
 returns true if start scan success, periodInMS means onDeviceCallback will be called every periodInMS, minium is 6000ms
 
@@ -241,7 +241,7 @@ const success = await sensorProfile.stopDataNotification();
 ### 9.3 Check if it's data transfering
 
 ```js
-const isDataTransfering = await sensorProfile.isDataTransfering();
+const isDataTransfering = sensorProfile.isDataTransfering();
 ```
 
 ## 10. Get batter level
