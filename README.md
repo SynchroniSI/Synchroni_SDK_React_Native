@@ -60,46 +60,47 @@ if (!SensorControllerInstance.hasDeviceCallback){
 ## 2. Start scan
 
 ```js
-public async SensorControllerInstance.startScan(periodInMs: number): Promise<boolean>
+const success = SensorControllerInstance.startScan(6000/*periodInMs*/)
 ```
 returns true if start scan success, periodInMS means onDeviceCallback will be called every periodInMS, minium is 6000ms
 
 ## 3. Stop scan
 
 ```js
-public async SensorControllerInstance.stopScan(): Promise<void>
+await SensorControllerInstance.stopScan();
 ```
 ## 4. Check scaning
 ```js
-public get SensorControllerInstance.isScaning(): boolean
+const isScaning = SensorControllerInstance.isScaning();
 ```
 
 ## 5. Check if bluetooth is enabled
 ```js
-public get SensorControllerInstance.isEnable(): boolean
+const isEnable = SensorControllerInstance.isEnable();
 ```
 ## 6. Create SensorProfile, can be undefined
 
 ```js
-public SensorControllerInstance.requireSensor(device: BLEDevice): SensorProfile | undefined
+const sensorProfile = SensorControllerInstance.requireSensor(bleDevice);
 ```
 
 ## 7. Get SensorProfile, can be undefined
 
 ```js
-public SensorControllerInstance.getSensor(device: BLEDevice): SensorProfile | undefined
+const sensorProfile = SensorControllerInstance.getSensor(bleDevice);
 ```
 
 ## 8. Get Connected SensorProfiles
 
 ```js
 public SensorControllerInstance.getConnectedSensors(): SensorProfile[]
+const sensorProfiles/*SensorProfile[]*/ = SensorControllerInstance.getConnectedSensors();
 ```
 
 ## 9. Get Connected BLE Devices
 
 ```js
-public SensorControllerInstance.getConnectedDevices(): BLEDevice[]
+const bleDevices/*BLEDevice[]*/ = SensorControllerInstance.getConnectedDevices();
 ```
 
 # SensorProfile methods:
@@ -130,21 +131,21 @@ sensorProfile.onDataCallback = (sensor: SensorProfile, data: SensorData) => {
 
 please await until connect return result
 ```js
-public async sensorProfile.connect(device: BLEDevice): Promise<boolean>
+const success = await sensorProfile.connect(bleDevice);
 ```
 
 ## 3. Disconnect
 
 please await until disconnect return result
 ```js
-public async sensorProfile.disconnect(): Promise<boolean>
+const success = await sensorProfile.disconnect();
 ```
 
 
 ## 4. Get device status
 
 ```js
-public get sensorProfile.connectionState(): DeviceStateEx
+const deviceStateEx = sensorProfile.connectionState();
 ```
 
 Please send command in 'Ready' state, should be after connect() return true
@@ -162,13 +163,13 @@ export enum DeviceStateEx {
 
 ## 5. Get BLE device of SensorProfile
 ```js
-public get sensorProfile.BLEDevice(): BLEDevice
+const bleDevice = sensorProfile.BLEDevice();
 ```
 
 ## 6. Get device info of SensorProfile
 Please call after device in 'Ready' state, return undefined if it's not connected
 ```js
-public async sensorProfile.deviceInfo(): Promise<DeviceInfo | undefined>
+const deviceInfo = await sensorProfile.deviceInfo();
 ```
 
 
@@ -176,7 +177,7 @@ public async sensorProfile.deviceInfo(): Promise<DeviceInfo | undefined>
 
 Please call after device in 'Ready' state, return true if init succeed
 ```js
-public async sensorProfile.init(packageSampleCount: number, powerRefreshInterval: number): Promise<boolean>
+const success = await sensorProfile.init(5/*packageSampleCount*/,60*1000/*powerRefreshInterval*/);
 ```
 packageSampleCount:   set sample counts of SensorData.channelSamples in onDataCallback()
 powerRefreshInterval: callback period for onPowerChanged()
@@ -184,7 +185,7 @@ powerRefreshInterval: callback period for onPowerChanged()
 ## 8. Check if init data transfer succeed
 
 ```js
-public get sensorProfile.hasInited(): boolean
+const hasInited = sensorProfile.hasInited();
 ```
 
 
@@ -193,7 +194,7 @@ Please call if hasInited() return true
 ### 9.1 Start data transfer
 
 ```js
-public async sensorProfile.startDataNotification(): Promise<boolean>
+const success = await sensorProfile.startDataNotification();
 ```
 
 Data type list：
@@ -235,19 +236,19 @@ For start data transfer, use `startDataNotification` to start. Process data in o
 ### 9.2 Stop data transfer
 
 ```js
-public async sensorProfile.stopDataNotification(): Promise<boolean>
+const success = await sensorProfile.stopDataNotification();
 ```
 
 ### 9.3 Check if it's data transfering
 
 ```js
-public get sensorProfile.isDataTransfering(): boolean
+const isDataTransfering = await sensorProfile.isDataTransfering();
 ```
 
 ## 10. Get batter level
 Please call after device in 'Ready' state, power from 0 - 100, -1 is invalid
 ```js
-public async sensorProfile.batteryPower(): Promise<number>
+const batteryPower = await sensorProfile.batteryPower();
 ```
 
 Please check SimpleTest function in App
