@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => "11.0" }
   s.source       = { :git => "https://github.com/SynchroniSI/Synchroni_SDK_React_Native.git", :tag => "#{s.version}" }
 
-  s.source_files = "ios/**/*.{h,m,mm}"
+  s.source_files = 'ios/Synchronisdk.h', 'ios/Synchronisdk.mm'
   s.ios.vendored_frameworks = 'ios/sensor.xcframework'
 
   # Use install_modules_dependencies helper to install the dependencies if React Native version >=0.71.0.

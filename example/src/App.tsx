@@ -32,7 +32,7 @@ export default function App() {
 
     if (!SensorControllerInstance.isScaning) {
       console.log('start scan');
-      if (!(await SensorControllerInstance.startScan(6000))) {
+      if (!(await SensorControllerInstance.startScan(2000))) {
         console.error('please try scan later');
       }
     }
@@ -190,7 +190,7 @@ export default function App() {
 
     if (!SensorControllerInstance.isScaning) {
       setMessage('scanning');
-      await SensorControllerInstance.startScan(6000);
+      await SensorControllerInstance.startScan(2000);
     } else {
       setMessage('stop scan');
       SensorControllerInstance.stopScan();
