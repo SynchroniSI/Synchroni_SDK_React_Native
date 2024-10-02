@@ -78,5 +78,7 @@ abstract class SynchronisdkSpec extends ReactContextBaseJavaModule {
   @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
   public abstract String getDeviceState(String deviceMac);
-
+  @ReactMethod
+  @DoNotStrip
+  public abstract void setParam(String deviceMac, String key, String value, Promise promise);
 }

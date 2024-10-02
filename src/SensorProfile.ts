@@ -278,6 +278,24 @@ export default class SensorProfile {
     });
   };
 
+  public setParam = async (key: string, value: string): Promise<string> => {
+    if (this.deviceState !== DeviceStateEx.Ready) {
+      console.warn('Please setParam after connected');
+      return '';
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      this._setParam(key, value)
+        .then((result: string) => {
+          resolve(result);
+        })
+        .catch((error) => {
+          this.emitError(error);
+          reject(error);
+        })
+        .finally(() => {});
+    });
+  };
   public init = async (
     packageSampleCount: number,
     powerRefreshInterval: number
@@ -744,5 +762,13 @@ export default class SensorProfile {
 
   private async _getDeviceInfo(onlyMTU: boolean): Promise<DeviceInfo> {
     return Synchronisdk.getDeviceInfo(this._device.Address, onlyMTU);
+  }
+
+  // private async _getParam(key: string): Promise<string> {
+  //   return Synchronisdk.getParam(this._device.Address, key);
+  // }
+
+  private async _setParam(key: string, value: string): Promise<string> {
+    return Synchronisdk.setParam(this._device.Address, key, value);
   }
 }

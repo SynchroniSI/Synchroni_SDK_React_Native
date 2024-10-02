@@ -87,6 +87,8 @@ export interface Spec extends TurboModule {
   getBatteryLevel(deviceMac: string): Promise<number>;
   getDeviceInfo(deviceMac: string, onlyMTU: boolean): Promise<DeviceInfo>;
   getDeviceState(deviceMac: string): DeviceStateEx;
+  // getParam(deviceMac: string, key: string): Promise<string>;
+  setParam(deviceMac: string, key: string, value: string): Promise<string>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Synchronisdk');

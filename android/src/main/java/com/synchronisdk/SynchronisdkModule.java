@@ -473,4 +473,14 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     return sensor.getDeviceStateString();
   }
 
+  @ReactMethod
+  @DoNotStrip
+  public void setParam(String deviceMac, String key, String value, Promise promise){
+    if (deviceMac == null || deviceMac.isEmpty()){
+      promise.reject("getDeviceInfo","invalid device");
+      return;
+    }
+    SensorProfile sensor = sensorScaner.getSensor(deviceMac);
+    promise.resolve("");
+  }
 }

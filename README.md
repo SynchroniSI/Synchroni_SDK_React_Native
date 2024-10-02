@@ -234,11 +234,11 @@ Data type list：
 
 ```js
 export enum DataType {
-  NTF_ACC = 0x1,
-  NTF_GYRO = 0x2,
-  NTF_EEG = 0x10,
-  NTF_ECG = 0x11,
-  NTF_BRTH = 0x15,
+  NTF_ACC = 0x1,    //unit is g
+  NTF_GYRO = 0x2,   //unit is degree/s
+  NTF_EEG = 0x10,   //unit is uV
+  NTF_ECG = 0x11,   //unit is uV
+  NTF_BRTH = 0x15,  //unit is uV
 }
 ```
 
