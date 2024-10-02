@@ -1,4 +1,18 @@
 #import "Synchronisdk.h"
+#import <sensor/sensor.h>
+
+
+@interface SensorDataCtx: NSObject<SensorProfileDelegate>
+
+@property (atomic, retain) SensorProfile* profile;
+@property (atomic, weak) id delegate;
+@end
+
+@interface SensorData(REACT)
+
+-(NSDictionary*)reactSamples:(SensorProfile*) profile;
+
+@end
 
 @interface Synchronisdk() <SensorControllerDelegate>
 {
@@ -7,6 +21,8 @@
     dispatch_queue_t        _senderQueue;
     SensorController*       _controller;
 }
+@property (atomic, strong) NSMutableDictionary<NSString* , SensorDataCtx* >* sensorDataCtxMap;
+
 @end
 
 const NSTimeInterval TIMEOUT = 5;
@@ -296,6 +312,18 @@ RCT_EXPORT_MODULE()
     return BLEStateInvalid;
 }
 
+-(void)_setParam:(NSString*_Nonnull)deviceMac key:(NSString*_Nonnull)key value:(NSString*_Nonnull)value  resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    
+    SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
+    if (dataCtx){
+        [dataCtx.profile setParam:key value:value completion:^(NSString * _Nonnull result) {
+            resolve(result);
+        }];
+        return;
+    }
+    resolve(@"FAIL");
+}
+
 #pragma mark - New Module methods
 
 
@@ -408,6 +436,14 @@ packageSampleCount:(double)packageSampleCount
     [self _getDeviceInfo:deviceMac onlyMTU:@(onlyMTU) resolve:resolve reject:reject];
 }
 
+- (void)setParam:(NSString*)deviceMac
+             key:(NSString*)key
+           value:(NSString*)value
+                             resolve:(RCTPromiseResolveBlock)resolve
+                              reject:(RCTPromiseRejectBlock)reject{
+    [self _setParam:deviceMac key:key value:value resolve:resolve reject:reject];
+}
+
 - (NSString *)getDeviceState:(NSString*)deviceMac {
     BLEState value = [self _getDeviceState:deviceMac];
     if (value == BLEStateUnConnected) {
@@ -423,6 +459,8 @@ packageSampleCount:(double)packageSampleCount
     }
     return @"Invalid";
 }
+
+
 #else
 
 #pragma mark - Old Module methods
@@ -506,6 +544,12 @@ RCT_EXPORT_METHOD(getDeviceInfo:(NSString*_Nonnull)deviceMac onlyMTU:(NSNumber*_
     
     [self _getDeviceInfo:deviceMac onlyMTU:onlyMTU resolve:resolve reject:reject];
 }
+
+RCT_EXPORT_METHOD(setParam:(NSString*_Nonnull)deviceMac key:(NSString*_Nonnull)key value:(NSString*_Nonnull)value resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
+    
+    [self _setParam:deviceMac key:key value:value resolve:resolve reject:reject];
+}
+
 
 RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
                                       getDeviceState:(NSString*_Nonnull)deviceMac) {

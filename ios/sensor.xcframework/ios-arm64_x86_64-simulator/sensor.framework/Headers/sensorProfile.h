@@ -92,6 +92,8 @@
 - (void)startDataNotification:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 - (void)stopDataNotification:(NSTimeInterval)timeout completion:(void (^)(BOOL success))completionHandler;
 
+- (void)setParam:(NSString*)key value:(NSString*)value completion:(void (^_Nonnull)(NSString* _Nonnull result))completionHandler;
+
 @end
 
 #endif

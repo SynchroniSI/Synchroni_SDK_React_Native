@@ -1,5 +1,6 @@
 // import VConsole from '@kafudev/react-native-vconsole';
 import React from 'react';
+import RNFS from 'react-native-fs';
 import { StyleSheet, View, Text, Button } from 'react-native';
 import {
   SensorController,
@@ -69,6 +70,23 @@ export default function App() {
           }
           //init & start data transfer
           if (!sensor.hasInited) {
+            const debugLogPath =
+              RNFS.TemporaryDirectoryPath +
+              '/ble_data_log_' +
+              Date.now() +
+              '.csv';
+            try {
+              const debugResult = await sensor.setParam(
+                'DEBUG_BLE_DATA_PATH',
+                debugLogPath
+              );
+              console.log(
+                'DEBUG_BLE_DATA_PATH: ' + debugLogPath + ' : ' + debugResult
+              );
+            } catch (error) {
+              console.error(error);
+            }
+
             if (!(await sensor.init(5, 5000))) {
               console.error(
                 'init device: ' + sensor.BLEDevice.Name + ' failed'
