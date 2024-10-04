@@ -73,6 +73,8 @@ export default function App() {
             const debugLogPath =
               RNFS.TemporaryDirectoryPath +
               '/ble_data_log_' +
+              sensor.BLEDevice.Name +
+              '_' +
               Date.now() +
               '.csv';
             try {

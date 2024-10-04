@@ -18,7 +18,6 @@
 {
     bool hasListeners;
     dispatch_queue_t        _methodQueue;
-    dispatch_queue_t        _senderQueue;
     SensorController*       _controller;
 }
 @property (atomic, strong) NSMutableDictionary<NSString* , SensorDataCtx* >* sensorDataCtxMap;
@@ -39,7 +38,6 @@ RCT_EXPORT_MODULE()
         
         hasListeners = NO;
         _methodQueue = dispatch_queue_create("SensorSDK", DISPATCH_QUEUE_SERIAL);
-        _senderQueue = dispatch_queue_create("SensorSDK_data", DISPATCH_QUEUE_SERIAL);
     }
     return self;
 }
@@ -51,11 +49,6 @@ RCT_EXPORT_MODULE()
 - (dispatch_queue_t)methodQueue
 {
     return _methodQueue;
-}
-
-- (dispatch_queue_t)senderQueue
-{
-    return _senderQueue;
 }
 
 - (NSArray<NSString *> *)supportedEvents
@@ -77,9 +70,7 @@ RCT_EXPORT_MODULE()
 
 -(void)sendEvent:(NSString*)name params:(id)params{
     if(hasListeners){
-        dispatch_async(self.senderQueue, ^{
-            [self sendEventWithName:name body:params];
-        });
+        [self sendEventWithName:name body:params];
     }
 }
 
