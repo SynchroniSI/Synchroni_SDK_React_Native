@@ -403,7 +403,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
     sensor.initDataTransfer(isGetFeature, TIMEOUT, new SensorProfile.Callback() {
       @Override
       public void gotResult(int result, String errorMsg) {
-        if (result > 0){
+        if (result != 0){
           promise.resolve(result);
         }else{
           promise.reject("initDataTransfer", errorMsg);

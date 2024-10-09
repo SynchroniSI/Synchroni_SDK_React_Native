@@ -46,7 +46,11 @@ export default function App() {
         await SensorControllerInstance.stopScan();
 
         let filterDevices = devices.filter((item) => {
-          return item.Name.startsWith('OB') || item.Name.startsWith('SYNC');
+          return (
+            item.Name.startsWith('OB') ||
+            item.Name.startsWith('SYNC') ||
+            item.Name.startsWith('Sync')
+          );
         });
         if (!filterDevices || filterDevices.length <= 0) {
           console.log('no device found');
