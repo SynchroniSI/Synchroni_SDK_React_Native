@@ -230,7 +230,7 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
   }
   @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  public boolean initSensor(String deviceMac){
+  public boolean doInitSensor(String deviceMac){
     if (deviceMac == null || deviceMac.isEmpty()){
       return false;
     }

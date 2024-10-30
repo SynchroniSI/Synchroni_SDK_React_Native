@@ -423,7 +423,7 @@ export default class SensorProfile {
     this._EMGChannelCount = 0;
     this._deviceInfo = undefined;
 
-    if (!Synchronisdk.initSensor(device.Address)) {
+    if (!Synchronisdk.doInitSensor(device.Address)) {
       console.error(
         'Invalid sensor profile: ' + device.Address + ' => ' + device.Name
       );

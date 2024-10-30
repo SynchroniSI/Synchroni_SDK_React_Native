@@ -95,30 +95,28 @@ RCT_EXPORT_MODULE()
     return _controller.isEnable;
 }
 
--(void)_initSensor:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+-(BOOL)_doInitSensor:(NSString*_Nonnull)deviceMac{
     
     if ([deviceMac isEqualToString:@""]){
-        resolve(@(FALSE));
-        return;
+        return FALSE;
     }
     
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
     if (!dataCtx){
         SensorProfile* profile = [_controller getSensor:deviceMac];
         if (!profile){
-            resolve(@(FALSE));
-            return;
+            return FALSE;
         }
         dataCtx = [[SensorDataCtx alloc] init];
         dataCtx.delegate = self;
         dataCtx.profile = profile;
         profile.delegate = dataCtx;
         [self.sensorDataCtxMap setObject:dataCtx forKey:deviceMac];
-        resolve(@(TRUE));
-        return;
+        return TRUE;
     }
-    resolve(@(FALSE));
+    return FALSE;
 }
+
 
 -(void)_connect:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     
@@ -151,7 +149,7 @@ RCT_EXPORT_MODULE()
             return;
         }
         
-        [dataCtx.profile startDataNotification:TIMEOUT completion:^(BOOL success) {
+        [dataCtx.profile startDataNotification:TIMEOUT completion:^(BOOL success, NSError *err) {
             resolve(@(success));
         }];
         return;
@@ -167,7 +165,7 @@ RCT_EXPORT_MODULE()
             resolve(@(FALSE));
             return;
         }
-        [dataCtx.profile stopDataNotification:TIMEOUT completion:^(BOOL success) {
+        [dataCtx.profile stopDataNotification:TIMEOUT completion:^(BOOL success, NSError *err) {
             resolve(@(success));
         }];
         return;
@@ -183,7 +181,7 @@ RCT_EXPORT_MODULE()
             resolve(@(0));
             return;
         }
-        [dataCtx.profile initECG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
+        [dataCtx.profile initECG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success, NSError *err) {
             resolve(@(dataCtx.profile.deviceInfo.ECGChannelCount));
         }];
         return;
@@ -199,7 +197,7 @@ RCT_EXPORT_MODULE()
             resolve(@(0));
             return;
         }
-        [dataCtx.profile initEEG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
+        [dataCtx.profile initEEG:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success, NSError *err) {
             resolve(@(dataCtx.profile.deviceInfo.EEGChannelCount));
         }];
         return;
@@ -215,7 +213,7 @@ RCT_EXPORT_MODULE()
             resolve(@(0));
             return;
         }
-        [dataCtx.profile initIMU:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
+        [dataCtx.profile initIMU:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success, NSError *err) {
             resolve(@(dataCtx.profile.deviceInfo.AccChannelCount));
         }];
         return;
@@ -231,7 +229,7 @@ RCT_EXPORT_MODULE()
             resolve(@(0));
             return;
         }
-        [dataCtx.profile initBRTH:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success) {
+        [dataCtx.profile initBRTH:inPackageSampleCount timeout:TIMEOUT completion:^(BOOL success, NSError *err) {
             resolve(@(dataCtx.profile.deviceInfo.BRTHChannelCount));
         }];
         return;
@@ -247,7 +245,7 @@ RCT_EXPORT_MODULE()
             resolve(@(FALSE));
             return;
         }
-        [dataCtx.profile initDataTransfer:[isGetFeature boolValue] timeout:TIMEOUT completion:^(int flag) {
+        [dataCtx.profile initDataTransfer:[isGetFeature boolValue] timeout:TIMEOUT completion:^(int flag, NSError *err) {
             resolve(@(flag));
         }];
 
@@ -264,7 +262,7 @@ RCT_EXPORT_MODULE()
             reject(@"getBatteryLevel", @"device not connected", nil);
             return;
         }
-        [dataCtx.profile getBattery:TIMEOUT completion:^(int battery) {
+        [dataCtx.profile getBattery:TIMEOUT completion:^(int battery, NSError *err) {
             resolve(@(battery));
         }];
         return;
@@ -280,7 +278,11 @@ RCT_EXPORT_MODULE()
             reject(@"getDeviceInfo", @"device not connected", nil);
             return;
         }
-        [dataCtx.profile getDeviceInfo:[onlyMTU boolValue] timeout:TIMEOUT completion:^(DeviceInfo *version) {
+        [dataCtx.profile getDeviceInfo:[onlyMTU boolValue] timeout:TIMEOUT completion:^(DeviceInfo *version, NSError *err) {
+            if (err != nil){
+                resolve(nil);
+                return;
+            }
             if ([onlyMTU boolValue]){
                 NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:@(version.MTUSize), @"MTUSize", nil];
                 resolve(result);
@@ -307,7 +309,7 @@ RCT_EXPORT_MODULE()
     
     SensorDataCtx* dataCtx = [self.sensorDataCtxMap objectForKey:deviceMac];
     if (dataCtx){
-        [dataCtx.profile setParam:key value:value completion:^(NSString * _Nonnull result) {
+        [dataCtx.profile setParam:TIMEOUT key:key value:value completion:^(NSString * _Nonnull result, NSError * _Nullable err) {
             resolve(result);
         }];
         return;
@@ -326,7 +328,7 @@ RCT_EXPORT_MODULE()
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
 (const facebook::react::ObjCTurboModule::InitParams &)params
 {
-    return std::make_shared<facebook::react::NativeSynchronySDKReactNativeSpecJSI>(params);
+    return std::make_shared<facebook::react::NativeSynchronisdkSpecJSI>(params);
 }
 
 
@@ -350,10 +352,8 @@ RCT_EXPORT_MODULE()
     return @([self _isEnable]);
 }
 
-- (void)initSensor:(NSString *)deviceMac
-           resolve:(RCTPromiseResolveBlock)resolve
-            reject:(RCTPromiseRejectBlock)reject{
-    [self _initSensor:deviceMac resolve:resolve reject:reject];
+- (NSNumber *)doInitSensor:(NSString *)deviceMac{
+    return @([self _doInitSensor:deviceMac]);
 }
 
 - (void)connect:(NSString *)deviceMac
@@ -477,10 +477,11 @@ RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(isEnable, NSNumber*,
     return @([self _isEnable]);
 }
 
-RCT_EXPORT_METHOD(initSensor:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
-    [self _initSensor:deviceMac resolve:resolve reject:reject];
-}
-
+RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(doInitSensor, NSNumber* ,
+                                      doInitSensor:(NSString*)deviceMac {
+    return @([self _doInitSensor:deviceMac]);
+})
+                                       
 RCT_EXPORT_METHOD(connect:(NSString*_Nonnull)deviceMac resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
     
     [self _connect:deviceMac resolve:resolve reject:reject];
@@ -565,29 +566,34 @@ RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
     }
 }
 
+- (void)onSensorControllerEnableChange:(bool)enabled {
+  
+}
+
+
 @end
 
 
 @implementation SensorDataCtx
 
-- (void)onSensorErrorCallback:(NSError *)err {
-    NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:self.profile.device.macAddress, @"deviceMac", [err description], @"errMsg", nil];
+- (void)onSensorErrorCallback:(SensorProfile * _Nonnull)profile err:(NSError * _Nonnull)err {
+    NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:profile.device.macAddress, @"deviceMac", [err description], @"errMsg", nil];
     
     Synchronisdk* instance = self.delegate;
 
     [instance sendEvent:@"GOT_ERROR" params:result];
 }
 
-- (void)onSensorNotifyData:(SensorData *)sensorData {
-    NSDictionary* sampleResult = [sensorData reactSamples: self.profile];
+- (void)onSensorNotifyData:(SensorProfile * _Nonnull)profile rawData:(SensorData * _Nonnull)rawData {
+    NSDictionary* sampleResult = [rawData reactSamples: profile];
     if (sampleResult != nil){
         Synchronisdk* instance = self.delegate;
         [instance sendEvent:@"GOT_DATA" params:sampleResult];
     }
 }
 
-- (void)onSensorStateChange:(BLEState)newState {
-    NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:self.profile.device.macAddress, @"deviceMac", @(newState), @"newState", nil];
+- (void)onSensorStateChange:(SensorProfile * _Nonnull)profile newState:(BLEState)newState {
+    NSDictionary* result = [NSDictionary dictionaryWithObjectsAndKeys:profile.device.macAddress, @"deviceMac", @(newState), @"newState", nil];
     
     Synchronisdk* instance = self.delegate;
     [instance sendEvent:@"STATE_CHANGED" params:result];

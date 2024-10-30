@@ -36,7 +36,7 @@ abstract class SynchronisdkSpec extends ReactContextBaseJavaModule {
   public abstract boolean isEnable();
   @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  public abstract boolean initSensor(String deviceMac);
+  public abstract boolean doInitSensor(String deviceMac);
   @ReactMethod
   @DoNotStrip
   public abstract void connect(String deviceMac, Promise promise);

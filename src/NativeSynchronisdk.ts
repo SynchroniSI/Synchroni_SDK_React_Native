@@ -74,7 +74,7 @@ export interface Spec extends TurboModule {
   stopScan(): Promise<void>;
   isScaning(): boolean;
   isEnable(): boolean;
-  initSensor(deviceMac: string): Promise<boolean>;
+  doInitSensor(deviceMac: string): boolean;
   connect(deviceMac: string): Promise<boolean>;
   disconnect(deviceMac: string): Promise<boolean>;
   startDataNotification(deviceMac: string): Promise<boolean>;
