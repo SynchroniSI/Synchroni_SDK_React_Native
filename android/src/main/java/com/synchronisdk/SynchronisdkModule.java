@@ -481,6 +481,12 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
       return;
     }
     SensorProfile sensor = sensorScaner.getSensor(deviceMac);
-    promise.resolve("");
+    sensor.setParam(key, value, TIMEOUT, new SensorProfile.Callback() {
+      @Override
+      public void gotResult(int result, String errorMsg) {
+        promise.resolve(errorMsg);
+      }
+    });
+
   }
 }

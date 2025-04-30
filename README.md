@@ -287,4 +287,28 @@ const batteryPower = await sensorProfile.batteryPower();
 # batteryPower is battery level returned, value ranges from 0 to 100, 0 means out of battery, while 100 means full.
 ```
 
+### setParam method
+
+Use `public async setParam(key: string, value: string): Promise<string>` to set parameter of sensor profile. Please call after device in 'Ready' state.
+
+Below is available key and value:
+
+```python
+result = await sensorProfile.setParam("FILTER_50HZ", "ON")
+# set 50Hz notch filter to ON or OFF, result is "OK" if succeed
+
+result = await sensorProfile.setParam("FILTER_60HZ", "ON")
+# set 60Hz notch filter to ON or OFF, result is "OK" if succeed
+
+result = await sensorProfile.setParam("FILTER_HPF", "ON")
+# set 0.5Hz hpf filter to ON or OFF, result is "OK" if succeed
+
+result = await sensorProfile.setParam("FILTER_LPF", "ON")
+# set 80Hz lpf filter to ON or OFF, result is "OK" if succeed
+
+result = await sensorProfile.setParam("DEBUG_BLE_DATA_PATH", "d:/temp/test.csv")
+# set debug ble data path, result is "OK" if succeed
+# please give an absolute path and make sure it is valid and writeable by yourself
+```
+
 Please check SimpleTest function in App

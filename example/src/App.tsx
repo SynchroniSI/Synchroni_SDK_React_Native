@@ -82,6 +82,8 @@ export default function App() {
               Date.now() +
               '.csv';
             try {
+              const filterResult = await sensor.setParam('FILTER_50HZ', 'OFF');
+              console.log('FILTER_50HZ: ' + filterResult);
               const debugResult = await sensor.setParam(
                 'DEBUG_BLE_DATA_PATH',
                 debugLogPath
