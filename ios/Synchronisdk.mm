@@ -314,7 +314,7 @@ RCT_EXPORT_MODULE()
         }];
         return;
     }
-    resolve(@"FAIL");
+    resolve(@"Error: invalid mac: ");
 }
 
 #pragma mark - New Module methods
