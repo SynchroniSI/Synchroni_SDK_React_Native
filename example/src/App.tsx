@@ -84,7 +84,10 @@ export default function App() {
             try {
               const filterResult = await sensor.setParam('FILTER_50HZ', 'OFF');
               console.log('FILTER_50HZ: ' + filterResult);
-              const notifyResult = await sensor.setParam('NTF_IMPEDANCE', 'OFF');
+              const notifyResult = await sensor.setParam(
+                'NTF_IMPEDANCE',
+                'OFF'
+              );
               console.log('notifyResult: ' + notifyResult);
               const debugResult = await sensor.setParam(
                 'DEBUG_BLE_DATA_PATH',
