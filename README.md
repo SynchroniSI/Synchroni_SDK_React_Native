@@ -284,7 +284,7 @@ Use `public async batteryPower(): Promise<number>` to get battery level. Please 
 ```js
 const batteryPower = await sensorProfile.batteryPower();
 
-# batteryPower is battery level returned, value ranges from 0 to 100, 0 means out of battery, while 100 means full.
+// batteryPower is battery level returned, value ranges from 0 to 100, 0 means out of battery, while 100 means full.
 ```
 
 ### setParam method
@@ -293,22 +293,32 @@ Use `public async setParam(key: string, value: string): Promise<string>` to set 
 
 Below is available key and value:
 
-```python
+```js
 result = await sensorProfile.setParam("FILTER_50HZ", "ON")
-# set 50Hz notch filter to ON or OFF, result is "OK" if succeed
+// set 50Hz notch filter to ON or OFF, result is "OK" if succeed
 
 result = await sensorProfile.setParam("FILTER_60HZ", "ON")
-# set 60Hz notch filter to ON or OFF, result is "OK" if succeed
+// set 60Hz notch filter to ON or OFF, result is "OK" if succeed
 
 result = await sensorProfile.setParam("FILTER_HPF", "ON")
-# set 0.5Hz hpf filter to ON or OFF, result is "OK" if succeed
+// set 0.5Hz hpf filter to ON or OFF, result is "OK" if succeed
 
 result = await sensorProfile.setParam("FILTER_LPF", "ON")
-# set 80Hz lpf filter to ON or OFF, result is "OK" if succeed
+// set 80Hz lpf filter to ON or OFF, result is "OK" if succeed
 
 result = await sensorProfile.setParam("DEBUG_BLE_DATA_PATH", "d:/temp/test.csv")
-# set debug ble data path, result is "OK" if succeed
-# please give an absolute path and make sure it is valid and writeable by yourself
+//# set debug ble data path, result is "OK" if succeed
+// please give an absolute path and make sure it is valid and writeable by yourself
 ```
+
+Filter Behavor on different devices:
+
+For EEG devices, when power on, default filter is 50Hz notch filter ON , 60Hz notch filter ON, 0.5Hz hpf filter ON and 80Hz lpf filter ON.
+
+For EMG devices, when power on, default filter is 50Hz notch filter ON , 60Hz notch filter ON, 10Hz hpf filter ON and 200Hz lpf filter ON.
+
+For Breath Belt devices, when power on, default filter is 50Hz notch filter ON , 60Hz notch filter ON, 0.5Hz hpf filter OFF and 80Hz lpf filter ON.
+
+Filter setting will be reset to default after reboot.
 
 Please check SimpleTest function in App
