@@ -15,6 +15,7 @@ export enum DataType {
   NTF_GYRO = 0x2,
   NTF_EEG = 0x10,
   NTF_ECG = 0x11,
+  NTF_IMPEDANCE = 0x12,
   NTF_BRTH = 0x15,
 }
 

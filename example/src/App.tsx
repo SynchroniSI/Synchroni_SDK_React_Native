@@ -22,6 +22,7 @@ type DataCtx = {
   lastECG?: SensorData;
   lastACC?: SensorData;
   lastGYRO?: SensorData;
+  lastImpedance?: SensorData;
 };
 
 export default function App() {
@@ -128,7 +129,8 @@ export default function App() {
                 data.dataType === DataType.NTF_ECG ||
                 data.dataType === DataType.NTF_BRTH ||
                 data.dataType === DataType.NTF_ACC ||
-                data.dataType === DataType.NTF_GYRO
+                data.dataType === DataType.NTF_GYRO ||
+                data.dataType === DataType.NTF_IMPEDANCE
               ) {
                 console.log(
                   'got data from sensor: ' +
@@ -306,6 +308,7 @@ export default function App() {
         dataCtx.lastECG = undefined;
         dataCtx.lastACC = undefined;
         dataCtx.lastGYRO = undefined;
+        dataCtx.lastImpedance = undefined;
       }
     };
 
@@ -335,6 +338,8 @@ export default function App() {
         dataCtx.lastACC = data;
       } else if (data.dataType === DataType.NTF_GYRO) {
         dataCtx.lastGYRO = data;
+      } else if (data.dataType === DataType.NTF_IMPEDANCE) {
+        dataCtx.lastImpedance = data;
       }
 
       // process data as you wish
@@ -376,6 +381,11 @@ export default function App() {
   }
 
   function processSampleData(data: SensorData) {
+    try {
+      console.log(data.dataType + ' : ' + data.channelSamples.length);
+    } catch (error) {
+      console.error(error);
+    }
     let samplesMsg = '';
     if (data.channelSamples.length > 0) {
       if (data.channelSamples[0]!.length > 0) {
@@ -425,7 +435,10 @@ export default function App() {
       }
     }
 
-    if (data.dataType === DataType.NTF_EEG) {
+    if (
+      data.dataType === DataType.NTF_EEG ||
+      data.dataType === DataType.NTF_IMPEDANCE
+    ) {
       const msg =
         'channel count:' +
         data.channelCount +
@@ -509,11 +522,13 @@ export default function App() {
       const ecg = dataCtx.lastECG;
       const acc = dataCtx.lastACC;
       const gyro = dataCtx.lastGYRO;
+      const impedance = dataCtx.lastImpedance;
 
       if (eeg) processSampleData(eeg);
       if (ecg) processSampleData(ecg);
       if (acc) processSampleData(acc);
       if (gyro) processSampleData(gyro);
+      if (impedance) processSampleData(impedance);
     } else {
       setEEGInfo('');
       setEEGSample('');
