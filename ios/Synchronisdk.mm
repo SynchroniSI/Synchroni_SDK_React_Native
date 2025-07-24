@@ -635,8 +635,12 @@ RCT_REMAP_BLOCKING_SYNCHRONOUS_METHOD(getDeviceState, NSNumber *_Nonnull,
 //            [sampleResult setValue:@(sample.channelIndex) forKey:@"channelIndex"];
 //            [sampleResult setValue:@(sample.timeStampInMs) forKey:@"timeStampInMs"];
             [sampleResult setValue:@(sample.convertData) forKey:@"data"];
-            [sampleResult setValue:@(sample.impedance) forKey:@"impedance"];
-            [sampleResult setValue:@(sample.saturation) forKey:@"saturation"];
+            if (self.dataType == 18){
+                //only for NTF_IMPEDANCE
+                [sampleResult setValue:@(sample.impedance) forKey:@"impedance"];
+                [sampleResult setValue:@(sample.saturation) forKey:@"saturation"];
+            }
+
             [sampleResult setValue:@(sample.isLost) forKey:@"isLost"];
             
             [samplesResult addObject:sampleResult];
