@@ -1,6 +1,6 @@
 {
   "name": "@synchroni/synchroni_sdk_react_native",
-  "version": "0.2.36",
+  "version": "0.2.37",
   "description": "Synchroni sdk for react native",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
