@@ -118,8 +118,10 @@ public class SynchronisdkModule extends com.synchronisdk.SynchronisdkSpec {
 //        sampleResult.putInt("channelIndex", sample.channelIndex);
 //        sampleResult.putInt("timeStampInMs", sample.timeStampInMs);
           sampleResult.putDouble("data", sample.data);
-          sampleResult.putDouble("impedance", sample.impedance);
-          sampleResult.putDouble("saturation", sample.saturation);
+          if (sensorData.dataType == SensorData.NTF_IMPEDANCE){
+            sampleResult.putDouble("impedance", sample.impedance);
+            sampleResult.putDouble("saturation", sample.saturation);
+          }
           sampleResult.putBoolean("isLost", sample.isLost);
           samplesResult.pushMap(sampleResult);
         }
